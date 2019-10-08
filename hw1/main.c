@@ -1,8 +1,8 @@
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdarg.h>
 #include <errno.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 const char row_format[] = "%-5s %-23s %-23s %s\n";
 const char _column0[] = "Proto";
@@ -12,16 +12,16 @@ const char _column3[] = "PID/Program name and arguments";
 
 struct Connection {
     int inode;
-    struct Process* proc;
+    struct Process *proc;
 };
 
 struct Process {
     int pid;
-    char* exe;
-    char* cmdline;
+    char *exe;
+    char *cmdline;
 };
 
-void fatal(const char* format, ...) {
+void fatal(const char *format, ...) {
     va_list args;
     va_start(args, format);
     vfprintf(stderr, format, args);
@@ -31,7 +31,7 @@ void fatal(const char* format, ...) {
 
 // skips 1 line
 // returns 1 on unexpected EOF
-int skipline(FILE* file) {
+int skipline(FILE *file) {
     char c;
     while ((c = fgetc(file)) != EOF) {
         if (c == '\n') {
@@ -41,14 +41,14 @@ int skipline(FILE* file) {
     return 1;
 }
 
-void format_address(char out[45], const char* addr, int port) {
+void format_address(char out[45], const char *addr, int port) {
     snprintf(out, 45, "%s:%d", addr, port);
 }
 
-void process_family(const char* family) {
+void process_family(const char *family) {
     char filename[] = "/proc/net/tcp6";
-    strncpy(filename+10, family, 4);
-    FILE* file = fopen(filename, "r");
+    strncpy(filename + 10, family, 4);
+    FILE *file = fopen(filename, "r");
     if (!file) {
         fatal("error opening %s", filename);
     }
@@ -60,7 +60,11 @@ void process_family(const char* family) {
     char remote_addr[33];
     int remote_port;
     int inode;
-    while (fscanf(file, "%*s %[0-9A-Fa-f]:%x %[0-9A-Fa-f]:%x %*s %*s %*s %*s %*d %*d %d", local_addr, &local_port, remote_addr, &remote_port, &inode) != EOF) {
+    while (
+        fscanf(file,
+               "%*s %[0-9A-Fa-f]:%x %[0-9A-Fa-f]:%x %*s %*s %*s %*s %*d %*d %d",
+               local_addr, &local_port, remote_addr, &remote_port,
+               &inode) != EOF) {
         if (skipline(file)) {
             fatal("unexpected EOF processing %s", filename);
         }
@@ -73,7 +77,7 @@ void process_family(const char* family) {
     fclose(file);
 }
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
     process_family("tcp");
     process_family("tcp6");
     process_family("udp");
