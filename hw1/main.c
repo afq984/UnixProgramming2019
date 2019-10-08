@@ -56,8 +56,7 @@ void fatal(const char *format, ...) {
     void arrayType##Free(struct arrayType *self) { free(self->data); }
 
 struct Process {
-    int pid;
-    char cmdline[4096];
+    char info[4096];
 };
 
 DECL_ARRAY(Process, ProcessArray, 128)
@@ -105,6 +104,7 @@ void format_address(char out[ADDR_AND_PORT_LEN], const char *hexaddr, int port,
     snprintf(out, ADDR_AND_PORT_LEN, "%s:%d", txtaddr, port);
 }
 
+const char PROCESS_INFO_UNKNOWN[] = "-";
 void process_family(const char *family, int af, struct ProcessArray pa,
                     struct InodeProcMap inodeMap, int filter,
                     const regex_t *filter_regex) {
@@ -134,17 +134,12 @@ void process_family(const char *family, int af, struct ProcessArray pa,
         char fra[ADDR_AND_PORT_LEN];
         format_address(fla, local_addr, local_port, af);
         format_address(fra, remote_addr, remote_port, af);
-        int processIndex = -1;
+        const char *processInfo = PROCESS_INFO_UNKNOWN;
         for (int i = 0; i < inodeMap.length; i++) {
             if (inodeMap.data[i].inode == inode) {
-                processIndex = inodeMap.data[i].processIndex;
+                processInfo = pa.data[inodeMap.data[i].processIndex].info;
                 break;
             }
-        }
-        char processInfo[4096 + 5] = "-";
-        if (processIndex != -1) {
-            snprintf(processInfo, sizeof(processInfo) - 1, "%d/%s",
-                     pa.data[processIndex].pid, pa.data[processIndex].cmdline);
         }
         printf(row_format, family, fla, fra, processInfo);
     }
@@ -212,8 +207,8 @@ int main(int argc, char **argv) {
         }
         if (hasOpenSocket) {
             struct Process *proc = ProcessArrayAppend(&processes);
-            proc->pid = pid;
-            memcpy(proc->cmdline, "-", 2);
+            int offset = sprintf(proc->info, "%d/", pid);
+            memcpy(proc->info + offset, "-", 2);
         }
         closedir(piddir);
     nextpid:;
