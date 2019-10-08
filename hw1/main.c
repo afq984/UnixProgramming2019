@@ -52,7 +52,8 @@ void fatal(const char *format, ...) {
             }                                                                  \
         }                                                                      \
         return &self->data[self->length++];                                    \
-    }
+    }                                                                          \
+    void arrayType##Free(struct arrayType *self) { free(self->data); }
 
 struct Process {
     int pid;
@@ -228,4 +229,9 @@ int main(int argc, char **argv) {
     printf(row_format, _column0, _column1, _column2, _column3);
     process_family("udp", AF_INET, processes, inodes, filter, &filter_regex);
     process_family("udp6", AF_INET6, processes, inodes, filter, &filter_regex);
+
+    ProcessArrayFree(&processes);
+    InodeProcMapFree(&inodes);
+    regfree(&sock_regexs[0]);
+    regfree(&sock_regexs[1]);
 }
