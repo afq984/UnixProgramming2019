@@ -90,9 +90,13 @@ void h2b(unsigned char *out, const char *in, int outlen) {
     }
 }
 
+#ifdef ILMS_240916
 #define ADDR_AND_PORT_LEN (INET6_ADDRSTRLEN + 6)
 // ":65536": 1 + 5 = 6
 // (null): 1
+#else
+#define ADDR_AND_PORT_LEN 24
+#endif
 void format_address(char out[ADDR_AND_PORT_LEN], const char *hexaddr, int port,
                     int af) {
     unsigned char binaddr[16];
@@ -103,7 +107,12 @@ void format_address(char out[ADDR_AND_PORT_LEN], const char *hexaddr, int port,
         fatal("cannot convert address %s to text: %s\n", hexaddr,
               strerror(errno));
     }
-    snprintf(out, ADDR_AND_PORT_LEN, "%s:%d", txtaddr, port);
+    // the returned byte count does not include '\0'
+    int n = snprintf(out, ADDR_AND_PORT_LEN, "%s:%d", txtaddr, port);
+    if (n > ADDR_AND_PORT_LEN) {
+        int port_len = snprintf(0, 0, ":%d", port) + 1;
+        snprintf(out + ADDR_AND_PORT_LEN - port_len, port_len, ":%d", port);
+    }
 }
 
 const char PROCESS_INFO_UNKNOWN[] = "-";
