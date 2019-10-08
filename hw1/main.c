@@ -14,12 +14,6 @@ const char _column1[] = "Local Address";
 const char _column2[] = "Foreign Address";
 const char _column3[] = "PID/Program name and arguments";
 
-struct Process {
-    int pid;
-    char *exe;
-    char *cmdline;
-};
-
 void fatal(const char *format, ...) {
     va_list args;
     va_start(args, format);
@@ -27,6 +21,42 @@ void fatal(const char *format, ...) {
     va_end(args);
     exit(2);
 }
+
+struct Process {
+    int pid;
+    char exe[256];
+    char cmdline[4096];
+};
+
+struct ProcessArray {
+    struct Process *data;
+    size_t length;
+    size_t allocatedLength;
+};
+
+struct ProcessArray ProcessArrayInit() {
+    struct ProcessArray r = {malloc(sizeof(struct Process) * 128), 0, 128};
+    if (!r.data) fatal("cannot allocate memory for process array\n");
+    return r;
+}
+
+struct Process *ProcessArrayNew(struct ProcessArray *self, int pid,
+                                char *cmdline) {
+    if (self->length == self->allocatedLength) {
+        self->allocatedLength *= 2;
+        self->data =
+            realloc(self->data, sizeof(struct Process) * self->allocatedLength);
+        if (!self->data) {
+            fatal("cannot allocate memory for process array\n");
+        }
+    }
+    return &self->data[self->length++];
+}
+
+struct InodeProcEntry {
+    int inode;
+    int processIndex;
+};
 
 // skips 1 line
 // returns 1 on unexpected EOF
@@ -105,10 +135,22 @@ int main(int argc, char **argv) {
     while ((ent = readdir(dir))) {
         for (char *c = ent->d_name; *c; c++) {
             if (!isdigit(*c))
-                goto nope;
-            puts(ent->d_name);
+                goto nextpid;
         }
-    nope:;
+
+        int pid;
+        sscanf(ent->d_name, "%d", &pid);
+
+        char pidfd[32];
+        snprintf(pidfd, 31, "/proc/%s/fd", ent->d_name);
+        DIR *piddir = opendir(pidfd);
+        if (!piddir)
+            goto nextpid;
+        struct dirent *fdent;
+        while ((fdent = readdir(piddir))) {
+        }
+        closedir(piddir);
+    nextpid:;
     }
     closedir(dir);
 
