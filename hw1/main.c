@@ -47,7 +47,7 @@ void format_address(char out[45], const char* addr, int port) {
 
 void process_family(const char* family) {
     char filename[] = "/proc/net/tcp6";
-    strncpy(filename+10, family, 5);
+    strncpy(filename+10, family, 4);
     FILE* file = fopen(filename, "r");
     if (!file) {
         fatal("error opening %s", filename);
