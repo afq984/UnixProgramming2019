@@ -181,6 +181,19 @@ int main(int argc, char **argv) {
 
     int filter = 0;
     regex_t filter_regex;
+    if (optind + 1 < argc)
+        fatal("Error: more than 1 [filter-string] supplied\nUsage: %s "
+              "[-t|--tcp] [-u|--udp] [filter-string]\n",
+              argv[0]);
+    if (optind +1 == argc) {
+        filter = 1;
+        int r = regcomp(&filter_regex, argv[optind], REG_EXTENDED);
+        if (r) {
+            char errorbuf[64];
+            regerror(r, &filter_regex, errorbuf, 64);
+            fatal("Error: %s\n", errorbuf);
+        }
+    }
 
     struct InodeProcMap inodes = InodeProcMapNew();
     struct ProcessArray processes = ProcessArrayNew();
@@ -284,4 +297,5 @@ int main(int argc, char **argv) {
     InodeProcMapFree(&inodes);
     regfree(&sock_regexs[0]);
     regfree(&sock_regexs[1]);
+    regfree(&filter_regex);
 }
