@@ -78,8 +78,13 @@ void process_family(const char *family) {
 }
 
 int main(int argc, char **argv) {
+    puts("List of TCP connections:");
+    printf(row_format, _column0, _column1, _column2, _column3);
     process_family("tcp");
     process_family("tcp6");
+    putchar('\n');
+    puts("List of UDP connections:");
+    printf(row_format, _column0, _column1, _column2, _column3);
     process_family("udp");
     process_family("udp6");
 }
