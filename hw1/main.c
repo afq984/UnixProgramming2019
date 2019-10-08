@@ -1,20 +1,18 @@
 #include <arpa/inet.h>
+#include <ctype.h>
+#include <dirent.h>
 #include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
 
 const char row_format[] = "%-5s %-23s %-23s %s\n";
 const char _column0[] = "Proto";
 const char _column1[] = "Local Address";
 const char _column2[] = "Foreign Address";
 const char _column3[] = "PID/Program name and arguments";
-
-struct Connection {
-    int inode;
-    struct Process *proc;
-};
 
 struct Process {
     int pid;
@@ -99,6 +97,21 @@ void process_family(const char *family, int af) {
 }
 
 int main(int argc, char **argv) {
+    DIR *dir = opendir("/proc");
+    if (!dir) {
+        fatal("failed to open /proc: %s\n", strerror(errno));
+    }
+    struct dirent *ent;
+    while ((ent = readdir(dir))) {
+        for (char *c = ent->d_name; *c; c++) {
+            if (!isdigit(*c))
+                goto nope;
+            puts(ent->d_name);
+        }
+    nope:;
+    }
+    closedir(dir);
+
     puts("List of TCP connections:");
     printf(row_format, _column0, _column1, _column2, _column3);
     process_family("tcp", AF_INET);
