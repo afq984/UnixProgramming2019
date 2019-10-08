@@ -5,6 +5,7 @@
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <libgen.h>
 #include <regex.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -205,12 +206,34 @@ int main(int argc, char **argv) {
             inodeent->inode = atoi(fdlink + match[1].rm_so);
             inodeent->processIndex = processes.length;
         }
+        closedir(piddir);
         if (hasOpenSocket) {
             struct Process *proc = ProcessArrayAppend(&processes);
             int offset = sprintf(proc->info, "%d/", pid);
-            memcpy(proc->info + offset, "-", 2);
+            int cmdfd = openat(pidfd, "../cmdline", O_RDONLY);
+            char cmdline[4096];
+            int nread = 0;
+            if (cmdfd != -1) {
+                nread = read(cmdfd, cmdline, 4095 - offset);
+                if (nread >= 1) {
+                    strncpy(proc->info + offset, basename(cmdline),
+                            4095 - offset);
+                    offset = strnlen(proc->info, 4096);
+                    for (int i = strnlen(cmdline, nread); i < nread; i++) {
+                        if (cmdline[i]) {
+                            proc->info[offset++] = cmdline[i];
+                        } else {
+                            proc->info[offset++] = ' ';
+                        }
+                    }
+                }
+                close(cmdfd);
+            }
+            if (cmdfd == -1 || nread < 1) {
+                memcpy(proc->info + offset, "-", 2);
+            }
         }
-        closedir(piddir);
+        close(pidfd);
     nextpid:;
     }
     closedir(dir);
