@@ -256,13 +256,13 @@ void build_process_inodes(struct ProcessArray *processes,
         if (cmdfd == -1 || nread < 1) {
             memcpy(proc->info + offset, "-", 2);
         }
-
         if (filter) {
             if (regexec(filter_regex, proc->info, 0, 0, 0)) {
                 processes->length--;
                 goto cleanup;
             }
         }
+
         while ((fdent = readdir(piddir))) {
             char fdlink[32];
             ssize_t linklen;
@@ -281,7 +281,7 @@ void build_process_inodes(struct ProcessArray *processes,
             hasOpenSocket = 1;
             struct InodeProcEntry *inodeent = InodeProcMapAppend(inodes);
             inodeent->inode = atoi(fdlink + match[1].rm_so);
-            inodeent->processIndex = processes->length;
+            inodeent->processIndex = processes->length - 1;
         }
     cleanup:
         closedir(piddir);
