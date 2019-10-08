@@ -41,8 +41,13 @@ int skipline(FILE *file) {
     return 1;
 }
 
-void format_address(char out[45], const char *addr, int port) {
-    snprintf(out, 45, "%s:%d", addr, port);
+#
+#define ADDR_AND_PORT_LEN 46
+// IPv6: 32 + 7 = 39
+// ":65536": 1 + 5 = 6
+// (null): 1
+void format_address(char out[ADDR_AND_PORT_LEN], const char *addr, int port) {
+    snprintf(out, ADDR_AND_PORT_LEN, "%s:%d", addr, port);
 }
 
 void process_family(const char *family) {
@@ -55,9 +60,9 @@ void process_family(const char *family) {
     if (skipline(file)) {
         fatal("unexpected EOF processing %s", filename);
     }
-    char local_addr[33];
+    char local_addr[40];
     int local_port;
-    char remote_addr[33];
+    char remote_addr[40];
     int remote_port;
     int inode;
     while (
@@ -68,8 +73,8 @@ void process_family(const char *family) {
         if (skipline(file)) {
             fatal("unexpected EOF processing %s", filename);
         }
-        char fla[45];
-        char fra[45];
+        char fla[ADDR_AND_PORT_LEN];
+        char fra[ADDR_AND_PORT_LEN];
         format_address(fla, local_addr, local_port);
         format_address(fra, remote_addr, remote_port);
         printf(row_format, family, fla, fra, "?/?");
