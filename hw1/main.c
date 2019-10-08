@@ -222,6 +222,38 @@ void build_process_inodes(struct ProcessArray *processes,
         int pidfd = open(pidpath, O_DIRECTORY);
         if (pidfd == -1)
             goto nextpid;
+
+        struct Process *proc = ProcessArrayAppend(processes);
+        int offset = sprintf(proc->info, "%d/", pid);
+        int cmdfd = openat(pidfd, "../cmdline", O_RDONLY);
+        char cmdline[4096];
+        int nread = 0;
+        if (cmdfd != -1) {
+            nread = read(cmdfd, cmdline, 4095 - offset);
+            if (nread >= 1) {
+                strncpy(proc->info + offset, basename(cmdline), 4095 - offset);
+                int ioffset = strnlen(proc->info, 4096);
+                for (int coffset = strnlen(cmdline, nread); coffset < nread;
+                     coffset++) {
+                    if (cmdline[coffset]) {
+                        proc->info[ioffset++] = cmdline[coffset];
+                    } else {
+                        proc->info[ioffset++] = ' ';
+                    }
+                }
+            }
+            close(cmdfd);
+        }
+        if (cmdfd == -1 || nread < 1) {
+            memcpy(proc->info + offset, "-", 2);
+        }
+
+        if (filter) {
+            if (regexec(filter_regex, proc->info, 0, 0, 0)) {
+                processes->length--;
+                goto cleanup;
+            }
+        }
         while ((fdent = readdir(piddir))) {
             char fdlink[32];
             ssize_t linklen;
@@ -241,36 +273,9 @@ void build_process_inodes(struct ProcessArray *processes,
             struct InodeProcEntry *inodeent = InodeProcMapAppend(inodes);
             inodeent->inode = atoi(fdlink + match[1].rm_so);
             inodeent->processIndex = processes->length;
-            printf("%d -> %d\n", inodeent->inode, pid);
         }
+    cleanup:
         closedir(piddir);
-        if (hasOpenSocket) {
-            struct Process *proc = ProcessArrayAppend(processes);
-            int offset = sprintf(proc->info, "%d/", pid);
-            int cmdfd = openat(pidfd, "../cmdline", O_RDONLY);
-            char cmdline[4096];
-            int nread = 0;
-            if (cmdfd != -1) {
-                nread = read(cmdfd, cmdline, 4095 - offset);
-                if (nread >= 1) {
-                    strncpy(proc->info + offset, basename(cmdline),
-                            4095 - offset);
-                    int ioffset = strnlen(proc->info, 4096);
-                    for (int coffset = strnlen(cmdline, nread); coffset < nread;
-                         coffset++) {
-                        if (cmdline[coffset]) {
-                            proc->info[ioffset++] = cmdline[coffset];
-                        } else {
-                            proc->info[ioffset++] = ' ';
-                        }
-                    }
-                }
-                close(cmdfd);
-            }
-            if (cmdfd == -1 || nread < 1) {
-                memcpy(proc->info + offset, "-", 2);
-            }
-        }
         close(pidfd);
     nextpid:;
     }
