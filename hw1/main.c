@@ -5,6 +5,7 @@
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <getopt.h>
 #include <libgen.h>
 #include <regex.h>
 #include <stdarg.h>
@@ -156,8 +157,30 @@ int main(int argc, char **argv) {
         fatal("failed to compile regular expression");
     }
 
-    regex_t filter_regex;
+    int do_tcp = 0;
+    int do_udp = 0;
+    while (1) {
+        struct option long_options[] = {{"tcp", no_argument, 0, 't'},
+                                        {"udp", no_argument, 0, 'u'},
+                                        {0, 0, 0, 0}};
+
+        int option_index = 0;
+        int c = getopt_long(argc, argv, "tu", long_options, &option_index);
+        if (c == -1)
+            break;
+        else if (c == 't')
+            do_tcp = 1;
+        else if (c == 'u')
+            do_udp = 1;
+        else
+            fatal("Usage: %s [-t|--tcp] [-u|--udp] [filter-string]\n", argv[0]);
+    }
+    if (!do_tcp && !do_udp) {
+        do_tcp = do_udp = 1;
+    }
+
     int filter = 0;
+    regex_t filter_regex;
 
     struct InodeProcMap inodes = InodeProcMapNew();
     struct ProcessArray processes = ProcessArrayNew();
@@ -238,15 +261,24 @@ int main(int argc, char **argv) {
     }
     closedir(dir);
 
-    puts("List of TCP connections:");
-    printf(row_format, _column0, _column1, _column2, _column3);
-    process_family("tcp", AF_INET, processes, inodes, filter, &filter_regex);
-    process_family("tcp6", AF_INET6, processes, inodes, filter, &filter_regex);
-    putchar('\n');
-    puts("List of UDP connections:");
-    printf(row_format, _column0, _column1, _column2, _column3);
-    process_family("udp", AF_INET, processes, inodes, filter, &filter_regex);
-    process_family("udp6", AF_INET6, processes, inodes, filter, &filter_regex);
+    if (do_tcp) {
+        puts("List of TCP connections:");
+        printf(row_format, _column0, _column1, _column2, _column3);
+        process_family("tcp", AF_INET, processes, inodes, filter,
+                       &filter_regex);
+        process_family("tcp6", AF_INET6, processes, inodes, filter,
+                       &filter_regex);
+    }
+    if (do_udp) {
+        if (do_tcp)
+            putchar('\n');
+        puts("List of UDP connections:");
+        printf(row_format, _column0, _column1, _column2, _column3);
+        process_family("udp", AF_INET, processes, inodes, filter,
+                       &filter_regex);
+        process_family("udp6", AF_INET6, processes, inodes, filter,
+                       &filter_regex);
+    }
 
     ProcessArrayFree(&processes);
     InodeProcMapFree(&inodes);
