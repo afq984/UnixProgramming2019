@@ -108,8 +108,7 @@ void format_address(char out[ADDR_AND_PORT_LEN], const char *hexaddr, int port,
 
 const char PROCESS_INFO_UNKNOWN[] = "-";
 void process_family(const char *family, int af, struct ProcessArray pa,
-                    struct InodeProcMap inodeMap, int filter,
-                    const regex_t *filter_regex) {
+                    struct InodeProcMap inodeMap, int filter) {
     char filename[] = "/proc/net/tcp6";
     strncpy(filename + 10, family, 4);
     FILE *file = fopen(filename, "r");
@@ -143,22 +142,25 @@ void process_family(const char *family, int af, struct ProcessArray pa,
                 break;
             }
         }
-        printf(row_format, family, fla, fra, processInfo);
+        if (!filter || processInfo != PROCESS_INFO_UNKNOWN) {
+            printf(row_format, family, fla, fra, processInfo);
+        }
     }
     fclose(file);
 }
 
-int main(int argc, char **argv) {
-    regex_t sock_regexs[2];
+regex_t sock_regexs[2];
+void init_sock_regexs() {
     if (regcomp(&sock_regexs[0], "socket:\\[([0-9]+)\\]", REG_EXTENDED)) {
         fatal("failed to compile regular expression");
     }
     if (regcomp(&sock_regexs[1], "\\[0000\\]:([0-9]+)", REG_EXTENDED)) {
         fatal("failed to compile regular expression");
     }
+}
 
-    int do_tcp = 0;
-    int do_udp = 0;
+void parse_options(int argc, char **argv, int *do_tcp, int *do_udp, int *filter,
+                   regex_t *filter_regex) {
     while (1) {
         struct option long_options[] = {{"tcp", no_argument, 0, 't'},
                                         {"udp", no_argument, 0, 'u'},
@@ -169,35 +171,33 @@ int main(int argc, char **argv) {
         if (c == -1)
             break;
         else if (c == 't')
-            do_tcp = 1;
+            *do_tcp = 1;
         else if (c == 'u')
-            do_udp = 1;
+            *do_udp = 1;
         else
             fatal("Usage: %s [-t|--tcp] [-u|--udp] [filter-string]\n", argv[0]);
     }
-    if (!do_tcp && !do_udp) {
-        do_tcp = do_udp = 1;
+    if (!*do_tcp && !*do_udp) {
+        *do_tcp = *do_udp = 1;
     }
-
-    int filter = 0;
-    regex_t filter_regex;
     if (optind + 1 < argc)
         fatal("Error: more than 1 [filter-string] supplied\nUsage: %s "
               "[-t|--tcp] [-u|--udp] [filter-string]\n",
               argv[0]);
-    if (optind +1 == argc) {
-        filter = 1;
-        int r = regcomp(&filter_regex, argv[optind], REG_EXTENDED);
+    if (optind + 1 == argc) {
+        int r = regcomp(filter_regex, argv[optind], REG_EXTENDED | REG_NOSUB);
         if (r) {
             char errorbuf[64];
-            regerror(r, &filter_regex, errorbuf, 64);
+            regerror(r, filter_regex, errorbuf, 64);
             fatal("Error: %s\n", errorbuf);
         }
+        *filter = 1;
     }
+}
 
-    struct InodeProcMap inodes = InodeProcMapNew();
-    struct ProcessArray processes = ProcessArrayNew();
-
+void build_process_inodes(struct ProcessArray *processes,
+                          struct InodeProcMap *inodes, int filter,
+                          const regex_t *filter_regex) {
     DIR *dir = opendir("/proc");
     if (!dir) {
         fatal("failed to open /proc: %s\n", strerror(errno));
@@ -238,13 +238,14 @@ int main(int argc, char **argv) {
                 continue;
             fdlink[match[1].rm_eo] = 0;
             hasOpenSocket = 1;
-            struct InodeProcEntry *inodeent = InodeProcMapAppend(&inodes);
+            struct InodeProcEntry *inodeent = InodeProcMapAppend(inodes);
             inodeent->inode = atoi(fdlink + match[1].rm_so);
-            inodeent->processIndex = processes.length;
+            inodeent->processIndex = processes->length;
+            printf("%d -> %d\n", inodeent->inode, pid);
         }
         closedir(piddir);
         if (hasOpenSocket) {
-            struct Process *proc = ProcessArrayAppend(&processes);
+            struct Process *proc = ProcessArrayAppend(processes);
             int offset = sprintf(proc->info, "%d/", pid);
             int cmdfd = openat(pidfd, "../cmdline", O_RDONLY);
             char cmdline[4096];
@@ -254,12 +255,13 @@ int main(int argc, char **argv) {
                 if (nread >= 1) {
                     strncpy(proc->info + offset, basename(cmdline),
                             4095 - offset);
-                    offset = strnlen(proc->info, 4096);
-                    for (int i = strnlen(cmdline, nread); i < nread; i++) {
-                        if (cmdline[i]) {
-                            proc->info[offset++] = cmdline[i];
+                    int ioffset = strnlen(proc->info, 4096);
+                    for (int coffset = strnlen(cmdline, nread); coffset < nread;
+                         coffset++) {
+                        if (cmdline[coffset]) {
+                            proc->info[ioffset++] = cmdline[coffset];
                         } else {
-                            proc->info[offset++] = ' ';
+                            proc->info[ioffset++] = ' ';
                         }
                     }
                 }
@@ -273,29 +275,41 @@ int main(int argc, char **argv) {
     nextpid:;
     }
     closedir(dir);
+}
+
+int main(int argc, char **argv) {
+    init_sock_regexs();
+
+    int do_tcp = 0;
+    int do_udp = 0;
+    int filter = 0;
+    regex_t filter_regex;
+    parse_options(argc, argv, &do_tcp, &do_udp, &filter, &filter_regex);
+
+    struct InodeProcMap inodes = InodeProcMapNew();
+    struct ProcessArray processes = ProcessArrayNew();
+    build_process_inodes(&processes, &inodes, filter, &filter_regex);
 
     if (do_tcp) {
         puts("List of TCP connections:");
         printf(row_format, _column0, _column1, _column2, _column3);
-        process_family("tcp", AF_INET, processes, inodes, filter,
-                       &filter_regex);
-        process_family("tcp6", AF_INET6, processes, inodes, filter,
-                       &filter_regex);
+        process_family("tcp", AF_INET, processes, inodes, filter);
+        process_family("tcp6", AF_INET6, processes, inodes, filter);
     }
     if (do_udp) {
         if (do_tcp)
             putchar('\n');
         puts("List of UDP connections:");
         printf(row_format, _column0, _column1, _column2, _column3);
-        process_family("udp", AF_INET, processes, inodes, filter,
-                       &filter_regex);
-        process_family("udp6", AF_INET6, processes, inodes, filter,
-                       &filter_regex);
+        process_family("udp", AF_INET, processes, inodes, filter);
+        process_family("udp6", AF_INET6, processes, inodes, filter);
     }
 
     ProcessArrayFree(&processes);
     InodeProcMapFree(&inodes);
     regfree(&sock_regexs[0]);
     regfree(&sock_regexs[1]);
-    regfree(&filter_regex);
+    if (filter) {
+        regfree(&filter_regex);
+    }
 }
