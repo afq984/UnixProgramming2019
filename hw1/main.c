@@ -1,3 +1,4 @@
+#include <arpa/inet.h>
 #include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -41,24 +42,39 @@ int skipline(FILE *file) {
     return 1;
 }
 
-#
-#define ADDR_AND_PORT_LEN 46
-// IPv6: 32 + 7 = 39
-// ":65536": 1 + 5 = 6
-// (null): 1
-void format_address(char out[ADDR_AND_PORT_LEN], const char *addr, int port) {
-    snprintf(out, ADDR_AND_PORT_LEN, "%s:%d", addr, port);
+void h2b(unsigned char *out, const char *in, int outlen) {
+    for (int i = 0; i < outlen; i += 4) {
+        sscanf(in + i * 2, "%2hhx%2hhx%2hhx%2hhx", out + i, out + i + 1,
+               out + i + 2, out + i + 3);
+        *(uint32_t *)(out + i) = htonl(*(uint32_t *)(out + i));
+    }
 }
 
-void process_family(const char *family) {
+#define ADDR_AND_PORT_LEN (INET6_ADDRSTRLEN + 6)
+// ":65536": 1 + 5 = 6
+// (null): 1
+void format_address(char out[ADDR_AND_PORT_LEN], const char *hexaddr, int port,
+                    int af) {
+    unsigned char binaddr[16];
+    h2b(binaddr, hexaddr, af == AF_INET ? 4 : 16);
+    char txtaddr[INET6_ADDRSTRLEN];
+    const char *p = inet_ntop(af, binaddr, txtaddr, INET6_ADDRSTRLEN);
+    if (!p) {
+        fatal("cannot convert address %s to text: %s\n", hexaddr,
+              strerror(errno));
+    }
+    snprintf(out, ADDR_AND_PORT_LEN, "%s:%d", txtaddr, port);
+}
+
+void process_family(const char *family, int af) {
     char filename[] = "/proc/net/tcp6";
     strncpy(filename + 10, family, 4);
     FILE *file = fopen(filename, "r");
     if (!file) {
-        fatal("error opening %s", filename);
+        fatal("error opening %s\n", filename);
     }
     if (skipline(file)) {
-        fatal("unexpected EOF processing %s", filename);
+        fatal("unexpected EOF processing %s\n", filename);
     }
     char local_addr[40];
     int local_port;
@@ -71,12 +87,12 @@ void process_family(const char *family) {
                local_addr, &local_port, remote_addr, &remote_port,
                &inode) != EOF) {
         if (skipline(file)) {
-            fatal("unexpected EOF processing %s", filename);
+            fatal("unexpected EOF processing %s\n", filename);
         }
         char fla[ADDR_AND_PORT_LEN];
         char fra[ADDR_AND_PORT_LEN];
-        format_address(fla, local_addr, local_port);
-        format_address(fra, remote_addr, remote_port);
+        format_address(fla, local_addr, local_port, af);
+        format_address(fra, remote_addr, remote_port, af);
         printf(row_format, family, fla, fra, "?/?");
     }
     fclose(file);
@@ -85,11 +101,11 @@ void process_family(const char *family) {
 int main(int argc, char **argv) {
     puts("List of TCP connections:");
     printf(row_format, _column0, _column1, _column2, _column3);
-    process_family("tcp");
-    process_family("tcp6");
+    process_family("tcp", AF_INET);
+    process_family("tcp6", AF_INET6);
     putchar('\n');
     puts("List of UDP connections:");
     printf(row_format, _column0, _column1, _column2, _column3);
-    process_family("udp");
-    process_family("udp6");
+    process_family("udp", AF_INET);
+    process_family("udp6", AF_INET6);
 }
