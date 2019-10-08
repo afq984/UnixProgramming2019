@@ -112,6 +112,10 @@ void format_address(char out[ADDR_AND_PORT_LEN], const char *hexaddr, int port,
     if (n > ADDR_AND_PORT_LEN) {
         int port_len = snprintf(0, 0, ":%d", port) + 1;
         snprintf(out + ADDR_AND_PORT_LEN - port_len, port_len, ":%d", port);
+        n = ADDR_AND_PORT_LEN;
+    }
+    if (port == 0) {
+        out[n - 1] = '*';
     }
 }
 
