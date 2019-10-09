@@ -82,11 +82,9 @@ int skipline(FILE *file) {
     return 1;
 }
 
-void h2b(unsigned char *out, const char *in, int outlen) {
-    for (int i = 0; i < outlen; i += 4) {
-        sscanf(in + i * 2, "%2hhx%2hhx%2hhx%2hhx", out + i, out + i + 1,
-               out + i + 2, out + i + 3);
-        *(uint32_t *)(out + i) = htonl(*(uint32_t *)(out + i));
+void h2b(uint32_t *out, const char *in, int outlen) {
+    for (int i = 0; i < outlen; i++) {
+        sscanf(in + i * 8, "%08X", out + i);
     }
 }
 
@@ -99,8 +97,8 @@ void h2b(unsigned char *out, const char *in, int outlen) {
 #endif
 void format_address(char out[ADDR_AND_PORT_LEN], const char *hexaddr, int port,
                     int af) {
-    unsigned char binaddr[16];
-    h2b(binaddr, hexaddr, af == AF_INET ? 4 : 16);
+    uint32_t binaddr[4];
+    h2b(binaddr, hexaddr, af == AF_INET ? 1 : 4);
     char txtaddr[INET6_ADDRSTRLEN];
     const char *p = inet_ntop(af, binaddr, txtaddr, INET6_ADDRSTRLEN);
     if (!p) {
