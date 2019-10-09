@@ -6,6 +6,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <getopt.h>
+#include <inttypes.h>
 #include <libgen.h>
 #include <regex.h>
 #include <stdarg.h>
@@ -84,7 +85,7 @@ int skipline(FILE *file) {
 
 void h2b(uint32_t *out, const char *in, int outlen) {
     for (int i = 0; i < outlen; i++) {
-        sscanf(in + i * 8, "%08X", out + i);
+        sscanf(in + i * 8, "%08" SCNx32, out + i);
     }
 }
 
