@@ -6,7 +6,6 @@
 #include <fcntl.h>
 #include <libgen.h>
 #include <limits.h>
-#include <linux/limits.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,8 +13,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-
-#include <stdexcept>
 
 static const char *basedir;
 static int basedir_len;
