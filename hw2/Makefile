@@ -1,5 +1,5 @@
 TARGETS = launcher sandbox.so
-CFLAGS = -g
+CFLAGS = -g -Wno-attribute-alias
 CXXFLAGS = $(CFLAGS)
 
 .PHONY: all

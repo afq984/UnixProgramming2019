@@ -219,7 +219,7 @@ int rmdir(const char *path) {
 }
 
 int __xstat(int __ver, const char *__filename, struct stat *__stat_buf) {
-    if (deny(__filename)) {
+    if (deny1(AT_FDCWD, __filename, "stat")) {
         return -1;
     }
     return libc___xstat(__ver, __filename, __stat_buf);
@@ -237,5 +237,44 @@ int unlink(const char *path) {
         return -1;
     }
     return libc_unlink(path);
+}
+
+int creat64(const char *pathname, mode_t mode) {
+    if (deny(pathname)) {
+        return -1;
+    }
+    return libc_creat64(pathname, mode);
+}
+
+FILE *fopen64(const char *pathname, const char *mode) {
+    if (deny(pathname)) {
+        return NULL;
+    }
+    return libc_fopen64(pathname, mode);
+}
+
+static int _open64(const char *pathname, int flags, mode_t mode) {
+    if (deny1(AT_FDCWD, pathname, "open64")) {
+        return -1;
+    }
+    return libc_open(pathname, flags, mode);
+}
+int open64(const char *pathame, int flags, ...)
+    __attribute__((weak, alias("_open64")));
+
+static int _openat64(int dirfd, const char *pathname, int flags, mode_t mode) {
+    if (deny1(dirfd, pathname, "openat")) {
+        return -1;
+    }
+    return libc_openat(dirfd, pathname, flags, mode);
+}
+int openat64(int fd, const char *path, int oflag, ...)
+    __attribute__((weak, alias("_openat64")));
+
+int __xstat64(int __ver, const char *__filename, struct stat64 *__stat_buf) {
+    if (deny1(AT_FDCWD, __filename, "stat64")) {
+        return -1;
+    }
+    return libc___xstat64(__ver, __filename, __stat_buf);
 }
 }
