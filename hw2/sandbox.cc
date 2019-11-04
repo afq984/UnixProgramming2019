@@ -6,6 +6,7 @@
 #include <fcntl.h>
 #include <libgen.h>
 #include <limits.h>
+#include <linux/limits.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,70 +17,17 @@
 
 #include <stdexcept>
 
+static const char *basedir;
+static int basedir_len;
+static int errfd = 2;
+
 static int eprintf(const char *fmt, ...) {
-    static int fd;
-    if (!fd) {
-        fd = open("/dev/tty", O_WRONLY);
-        if (fd == -1) {
-            fd = 2;
-            dprintf(2, "failed to open /dev/tty, falling back to fd 2.");
-        }
-    }
     va_list ap;
     va_start(ap, fmt);
-    int r = vdprintf(fd, fmt, ap);
+    int r = vdprintf(errfd, fmt, ap);
     va_end(ap);
     return r;
 }
-
-static const char *basedir;
-static int basedir_len;
-
-static int deny1(const char *hint, const char *path) {
-    int oerrno = errno;
-    char resolved_path[PATH_MAX];
-    if (realpath(path, resolved_path)) {
-        if (strncmp(basedir, resolved_path, basedir_len)) {
-            if (strcmp(path, resolved_path)) {
-                eprintf("[sandbox] %s: access to %s -> %s is not allowed\n",
-                        hint, path, resolved_path);
-            } else {
-                eprintf("[sandbox] %s: access to %s is not allowed\n", hint,
-                        path);
-            }
-            errno = EACCES;
-            return -1;
-        }
-        errno = oerrno;
-        return 0;
-    }
-    if (errno == ENOENT) {
-        // I think this may trigger SIGSEGV...
-        const char *base = basename(strdupa(path));
-        const char *dir = dirname(strdupa(path));
-        if (realpath(dir, resolved_path)) {
-            if (strncmp(basedir, resolved_path, basedir_len)) {
-                if (strcmp(dir, resolved_path)) {
-                    eprintf("[sandbox] %s: access to %s -> %s/%s is not "
-                            "allowed\n",
-                            hint, path, resolved_path, base);
-                } else {
-                    eprintf("[sandbox] %s: access to %s is not allowed\n", hint,
-                            path);
-                }
-                errno = EACCES;
-                return -1;
-            } else {
-                errno = oerrno;
-                return 0;
-            }
-        }
-    }
-    eprintf("[sandbox] %s: could not resolve %s\n", hint, path);
-    return -1;
-}
-
-#define deny(name) deny1(__func__, name)
 
 static void *findfunc(const char *name) {
     void *f = dlsym(RTLD_NEXT, name);
@@ -90,15 +38,8 @@ static void *findfunc(const char *name) {
     return f;
 }
 
-__attribute__((constructor)) static void init() {
-    basedir = strdup(getenv("SANDBOX_BASEDIR"));
-    basedir_len = strlen(basedir);
-    eprintf("using basedir: %s\n", basedir);
-}
-
-#define libc_decl(name)                                                        \
-    decltype(&name) libc_##name =                                              \
-        reinterpret_cast<decltype(&name)>(findfunc(#name))
+#define libc(name) reinterpret_cast<decltype(&name)>(findfunc(#name))
+#define libc_decl(name) decltype(&name) libc_##name = libc(name)
 
 libc_decl(chdir);
 libc_decl(chmod);
@@ -122,6 +63,50 @@ libc_decl(fopen64);
 libc_decl(open64);
 libc_decl(openat64);
 libc_decl(__xstat64);
+
+__attribute__((constructor)) static void init() {
+    basedir = strdup(getenv("SANDBOX_BASEDIR"));
+    basedir_len = strlen(basedir);
+    int fd = libc(open)("/dev/tty", O_WRONLY);
+    if (fd == -1) {
+        dprintf(2, "failed to open /dev/tty, falling back to fd 2.");
+    } else {
+        errfd = fd;
+    }
+}
+
+static int deny1(int dirfd, const char *path, const char *hint) {
+    int oerrno = errno;
+    char resolved_path[PATH_MAX];
+    int fd = libc_openat(dirfd, path, O_PATH);
+    if (fd == -1) {
+        return -1;
+    }
+    char procpath[PATH_MAX];
+    snprintf(procpath, PATH_MAX, "/proc/self/fd/%d", fd);
+    ssize_t linksize = libc_readlink(procpath, resolved_path, PATH_MAX);
+    close(fd);
+    if (-1 == linksize || linksize >= PATH_MAX) {
+        eprintf("[sandbox] %s: cannot resolve %s\n", hint, path);
+        return -1;
+    }
+    resolved_path[linksize] = 0;
+    if (strncmp(basedir, resolved_path, basedir_len)) {
+        if (dirfd == AT_FDCWD && strcmp(path, resolved_path)) {
+            eprintf("[sandbox] %s: access to %s -> %s is not allowed\n", hint,
+                    path, resolved_path);
+        } else {
+            eprintf("[sandbox] %s: access to %s is not allowed\n", hint,
+                    resolved_path);
+        }
+        errno = EACCES;
+        return -1;
+    }
+    errno = oerrno;
+    return 0;
+}
+
+#define deny(name) deny1(AT_FDCWD, name, __func__)
 
 extern "C" {
 
@@ -179,6 +164,24 @@ int mkdir(const char *path, mode_t mode) {
     }
     return libc_mkdir(path, mode);
 }
+
+static int _open(const char *pathname, int flags, mode_t mode) {
+    if (deny1(AT_FDCWD, pathname, "open")) {
+        return -1;
+    }
+    return libc_open(pathname, flags, mode);
+}
+int open(const char *pathame, int flags, ...)
+    __attribute__((weak, alias("_open")));
+
+static int _openat(int dirfd, const char *pathname, int flags, mode_t mode) {
+    if (deny1(dirfd, pathname, "openat")) {
+        return -1;
+    }
+    return libc_openat(dirfd, pathname, flags, mode);
+}
+int openat(int fd, const char *path, int oflag, ...)
+    __attribute__((weak, alias("_openat")));
 
 DIR *opendir(const char *name) {
     if (deny(name)) {

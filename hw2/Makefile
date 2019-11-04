@@ -1,10 +1,12 @@
 TARGETS = launcher sandbox.so
+CFLAGS = -g
+CXXFLAGS = $(CFLAGS)
 
 .PHONY: all
 all: $(TARGETS)
 
 sandbox.so: sandbox.cc
-	$(CXX) -o $@ $(CFLAGS) -shared -ldl -fPIC $^
+	$(CXX) -o $@ $(CXXFLAGS) -shared -ldl -fPIC $^
 
 .PHONY: clean
 clean:
