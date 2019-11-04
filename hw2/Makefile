@@ -3,8 +3,8 @@ TARGETS = launcher sandbox.so
 .PHONY: all
 all: $(TARGETS)
 
-sandbox.so: sandbox.c
-	$(CC) -o $@ $(CFLAGS) -shared $^
+sandbox.so: sandbox.cc
+	$(CXX) -o $@ $(CFLAGS) -shared -ldl -fPIC $^
 
 .PHONY: clean
 clean:

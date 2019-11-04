@@ -51,5 +51,5 @@ int main(int argc, char **argv) {
     setenv("LD_PRELOAD", sopath, 1);
     setenv("SANDBOX_BASEDIR", basedir, 1);
     execvp(argv[optind], argv + optind);
-    perror("execvp");
+    perror(argv[optind]);
 }
