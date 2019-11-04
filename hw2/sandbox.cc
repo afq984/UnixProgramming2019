@@ -105,13 +105,28 @@ static int deny1(int dirfd, const char *path, const char *hint) {
 
 #define deny(name) deny1(AT_FDCWD, name, __func__)
 
+#define denyexec()                                                             \
+    do {                                                                       \
+        eprintf("[sandbox] %s(%s): not allowed\n", __func__, arg0);            \
+        errno = EACCES;                                                        \
+        return -1;                                                             \
+    } while (0)
+
 extern "C" {
 
-int execve(const char *file, char *const argv[], char *const envp[]) {
-    eprintf("[sandbox] execve(%s): not allowed\n", file);
-    errno = EACCES;
-    return -1;
-}
+int execl(const char *arg0, const char *, ...) { denyexec(); }
+
+int execle(const char *arg0, const char *, ...) { denyexec(); }
+
+int execlp(const char *arg0, const char *, ...) { denyexec(); }
+
+int execv(const char *arg0, char *const[]) { denyexec(); }
+
+int execvp(const char *arg0, char *const[]) { denyexec(); }
+
+int execve(const char *arg0, char *const[], char *const[]) { denyexec(); }
+
+int system(const char *arg0) { denyexec(); }
 
 int chdir(const char *path) {
     if (deny(path)) {
