@@ -267,30 +267,30 @@ TEST_F(Chown, NoSuchFileOrDirectoryOutside) {
 
 class Exec : public SandboxTest {};
 
-TEST_F(Exec, Execl) { EXPECT_ERRNO(ESBX, -1, execl("/bin/sh", "sh")); }
+TEST_F(Exec, Execl) { EXPECT_ERRNO(ESBX, -1, execl("/bin/ls", "ls", 0)); }
 
 TEST_F(Exec, Execle) {
-    EXPECT_ERRNO(ESBX, -1, execl("/bin/sh", "sh", environ));
+    EXPECT_ERRNO(ESBX, -1, execle("/bin/ls", "ls", 0, environ));
 }
 
-TEST_F(Exec, Execlp) { EXPECT_ERRNO(ESBX, -1, execl("sh", "sh")); }
+TEST_F(Exec, Execlp) { EXPECT_ERRNO(ESBX, -1, execlp("ls", "ls", 0)); }
 
 TEST_F(Exec, Execv) {
-    char binsh[] = "/bin/sh";
-    char *args[] = {binsh, 0};
-    EXPECT_ERRNO(ESBX, -1, execv("/bin/sh", args));
+    char binls[] = "/bin/ls";
+    char *args[] = {binls, 0};
+    EXPECT_ERRNO(ESBX, -1, execv("/bin/ls", args));
 }
 
 TEST_F(Exec, Execve) {
-    char binsh[] = "/bin/sh";
-    char *args[] = {binsh, 0};
-    EXPECT_ERRNO(ESBX, -1, execve("/bin/sh", args, environ));
+    char binls[] = "/bin/ls";
+    char *args[] = {binls, 0};
+    EXPECT_ERRNO(ESBX, -1, execve("/bin/ls", args, environ));
 }
 
 TEST_F(Exec, Execvp) {
-    char binsh[] = "/bin/sh";
-    char *args[] = {binsh, 0};
-    EXPECT_ERRNO(ESBX, -1, execv("sh", args));
+    char binls[] = "/bin/ls";
+    char *args[] = {binls, 0};
+    EXPECT_ERRNO(ESBX, -1, execv("ls", args));
 }
 
 TEST_F(Exec, System) { EXPECT_ERRNO(ESBX, -1, system("ls -l")); }
