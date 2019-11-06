@@ -264,3 +264,33 @@ TEST_F(Chown, NoSuchFileOrDirectoryOutside) {
     EXPECT_ERRNO(ENOENT, -1, chown("/does/not/exist", getuid(), getgid()));
     EXPECT_ERRNO(ENOENT, -1, chown("loutbroken", getuid(), getgid()));
 }
+
+class Exec : public SandboxTest {};
+
+TEST_F(Exec, Execl) { EXPECT_ERRNO(ESBX, -1, execl("/bin/sh", "sh")); }
+
+TEST_F(Exec, Execle) {
+    EXPECT_ERRNO(ESBX, -1, execl("/bin/sh", "sh", environ));
+}
+
+TEST_F(Exec, Execlp) { EXPECT_ERRNO(ESBX, -1, execl("sh", "sh")); }
+
+TEST_F(Exec, Execv) {
+    char binsh[] = "/bin/sh";
+    char *args[] = {binsh, 0};
+    EXPECT_ERRNO(ESBX, -1, execv("/bin/sh", args));
+}
+
+TEST_F(Exec, Execve) {
+    char binsh[] = "/bin/sh";
+    char *args[] = {binsh, 0};
+    EXPECT_ERRNO(ESBX, -1, execve("/bin/sh", args, environ));
+}
+
+TEST_F(Exec, Execvp) {
+    char binsh[] = "/bin/sh";
+    char *args[] = {binsh, 0};
+    EXPECT_ERRNO(ESBX, -1, execv("sh", args));
+}
+
+TEST_F(Exec, System) { EXPECT_ERRNO(ESBX, -1, system("ls -l")); }
