@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <iomanip>
 #include <stdexcept>
 #include <string>
 
@@ -61,19 +62,22 @@ class SandboxTest : public ::testing::Test {
     void SetUp() override {
         ASSERT_TRUE(libc_getcwd(basedir, PATH_MAX));
         int fd;
-        ASSERT_NE(-1, fd = libc_open("fa", O_WRONLY | O_CREAT | O_EXCL, 0644));
+        ASSERT_NE(-1, fd = libc_open("f0", O_WRONLY | O_CREAT | O_EXCL, 0644));
         ASSERT_EQ(2, libc_write(fd, "a\n", 2));
         ASSERT_EQ(0, libc_close(fd));
 
         ASSERT_EQ(0, libc_mkdir("dempty", 0755));
-        ASSERT_EQ(0, libc_mkdir("d", 0755));
+        ASSERT_EQ(0, libc_mkdir("dhasfile", 0755));
 
-        ASSERT_NE(-1,
-                  fd = libc_open("d/fb", O_WRONLY | O_CREAT | O_EXCL, 0644));
+        ASSERT_NE(-1, fd = libc_open("dhasfile/f1", O_WRONLY | O_CREAT | O_EXCL,
+                                     0644));
         ASSERT_EQ(2, libc_write(fd, "b\n", 2));
         ASSERT_EQ(0, libc_close(fd));
 
-        ASSERT_EQ(0, libc_symlink("fa", "la"));
+        ASSERT_EQ(0, libc_symlink("f0", "l0"));
+        ASSERT_EQ(0, libc_symlink("dhasfile/f1", "l1"));
+        ASSERT_EQ(0, libc_symlink("dempty", "ldempty"));
+        ASSERT_EQ(0, libc_symlink("dhasfile", "ldhasfile"));
         ASSERT_EQ(0, libc_symlink("/bin/sh", "lsh"));
         ASSERT_EQ(0, libc_symlink("/", "lroot"));
         ASSERT_EQ(0, libc_symlink(".", "l."));
@@ -85,12 +89,15 @@ class SandboxTest : public ::testing::Test {
 
     void TearDown() override {
         ASSERT_EQ(0, libc_chdir(basedir));
-        ASSERT_EQ(0, libc_unlink("fa"));
+        ASSERT_EQ(0, libc_unlink("f0"));
         ASSERT_EQ(0, libc_rmdir("dempty"));
-        ASSERT_EQ(0, libc_unlink("d/fb"));
-        ASSERT_EQ(0, libc_rmdir("d"));
+        ASSERT_EQ(0, libc_unlink("dhasfile/f1"));
+        ASSERT_EQ(0, libc_rmdir("dhasfile"));
 
-        ASSERT_EQ(0, libc_unlink("la"));
+        ASSERT_EQ(0, libc_unlink("l0"));
+        ASSERT_EQ(0, libc_unlink("l1"));
+        ASSERT_EQ(0, libc_unlink("ldempty"));
+        ASSERT_EQ(0, libc_unlink("ldhasfile"));
         ASSERT_EQ(0, libc_unlink("lsh"));
         ASSERT_EQ(0, libc_unlink("lroot"));
         ASSERT_EQ(0, libc_unlink("l."));
@@ -107,8 +114,16 @@ class Chdir : public SandboxTest {};
 
 #define EXPECT_ERRNO(e, r, op)                                                 \
     do {                                                                       \
-        EXPECT_EQ(r, op);                                                      \
-        EXPECT_EQ(e, errno);                                                   \
+        int oerrno = errno;                                                    \
+        auto ret = op;                                                         \
+        EXPECT_TRUE(ret == r and e == errno)                                   \
+            << #op "\n"                                                        \
+            << "         retval / errno\n"                                     \
+            << "expected " << std::setw(6) << r << " / " << e << ": "          \
+            << strerror(e) << "\n"                                             \
+            << "     got " << std::setw(6) << ret << " / " << errno << ": "    \
+            << strerror(errno);                                                \
+        errno = oerrno;                                                        \
     } while (0)
 
 TEST_F(Chdir, ParentDirectory) {
@@ -142,12 +157,12 @@ TEST_F(Chdir, SHere) {
 }
 
 TEST_F(Chdir, File) {
-    EXPECT_EQ(-1, chdir("fa"));
+    EXPECT_EQ(-1, chdir("f0"));
     EXPECT_EQ(ENOTDIR, errno);
 }
 
 TEST_F(Chdir, SFile) {
-    EXPECT_EQ(-1, chdir("la"));
+    EXPECT_EQ(-1, chdir("l0"));
     EXPECT_EQ(ENOTDIR, errno);
 }
 
@@ -172,6 +187,39 @@ TEST_F(Chdir, BrokenSymlinkOutside) {
 }
 
 TEST_F(Chdir, Inside) {
-    EXPECT_ERRNO(0, 0, chdir("d"));
+    EXPECT_ERRNO(0, 0, chdir("dempty"));
     EXPECT_ERRNO(0, 0, chdir(".."));
+}
+
+class Chmod : public SandboxTest {};
+
+TEST_F(Chmod, Inside) {
+    EXPECT_ERRNO(0, 0, chmod("dhasfile", 0755));
+    EXPECT_ERRNO(0, 0, chmod("dempty", 0755));
+    EXPECT_ERRNO(0, 0, chmod("dhasfile/f1", 0644));
+    EXPECT_ERRNO(0, 0, chmod("f0", 0644));
+}
+
+TEST_F(Chmod, SInside) {
+    EXPECT_ERRNO(0, 0, chmod("l0", 0644));
+    EXPECT_ERRNO(0, 0, chmod("l1", 0644));
+    EXPECT_ERRNO(0, 0, chmod("ldempty", 0755));
+    EXPECT_ERRNO(0, 0, chmod("ldhasfile", 0755));
+}
+
+TEST_F(Chmod, Outside) {
+    EXPECT_ERRNO(ESBX, -1, chmod("..", 0755));
+    EXPECT_ERRNO(ESBX, -1, chmod("/", 0755));
+    EXPECT_ERRNO(ESBX, -1, chmod("/dev/null", 0755));
+}
+
+TEST_F(Chmod, SOutside) {
+    EXPECT_ERRNO(ESBX, -1, chmod("lroot", 0755));
+    EXPECT_ERRNO(ESBX, -1, chmod("l..", 0755));
+    EXPECT_ERRNO(ESBX, -1, chmod("loutbroken", 0755));
+}
+
+TEST_F(Chmod, NoSuchFileOrDirectory) {
+    EXPECT_ERRNO(ENOENT, -1, chmod("missing", 0755));
+    EXPECT_ERRNO(ENOENT, -1, chmod("lbroken", 0755));
 }
