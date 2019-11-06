@@ -34,7 +34,7 @@ static void *findfunc(const char *name) {
             throw rtef("dlopen(libc.so.6) failed: %s", dlerror());
         }
     }
-    void *f = dlsym(RTLD_NEXT, name);
+    void *f = dlsym(libc, name);
     if (!f) {
         throw rtef("dlsym(%s) failed: %s", name, dlerror());
     }
