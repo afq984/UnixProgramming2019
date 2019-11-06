@@ -216,10 +216,14 @@ TEST_F(Chmod, Outside) {
 TEST_F(Chmod, SOutside) {
     EXPECT_ERRNO(ESBX, -1, chmod("lroot", 0755));
     EXPECT_ERRNO(ESBX, -1, chmod("l..", 0755));
-    EXPECT_ERRNO(ESBX, -1, chmod("loutbroken", 0755));
 }
 
 TEST_F(Chmod, NoSuchFileOrDirectory) {
     EXPECT_ERRNO(ENOENT, -1, chmod("missing", 0755));
     EXPECT_ERRNO(ENOENT, -1, chmod("lbroken", 0755));
+}
+
+TEST_F(Chmod, NoSuchFileOrDirectoryOutside) {
+    EXPECT_ERRNO(ENOENT, -1, chmod("/does/not/exist", 0755));
+    EXPECT_ERRNO(ENOENT, -1, chmod("loutbroken", 0755));
 }
