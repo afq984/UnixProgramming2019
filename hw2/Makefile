@@ -16,11 +16,16 @@ hw2: launcher
 test: test.cc
 	$(CXX) -o $@ $(CXXFLAGS) -lgtest_main -lgtest -ldl $^
 
+test64: test.cc
+	$(CXX) -o $@ $(CXXFLAGS) -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -lgtest_main -lgtest -ldl $^
+
+
 .PHONY: r
-r: test hw2 sandbox.so
+r: test test64 hw2 sandbox.so
 	rm -rf testroot
 	mkdir testroot
 	cd testroot && ../hw2 -p ../sandbox.so ../test
+	cd testroot && ../hw2 -p ../sandbox.so ../test64
 
 .PHONY: clean
 clean:
