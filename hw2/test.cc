@@ -51,6 +51,8 @@ libc_decl(write);
 libc_decl(close);
 libc_decl(symlink);
 libc_decl(chdir);
+libc_decl(mkdir);
+libc_decl(rmdir);
 
 class SandboxTest : public ::testing::Test {
   protected:
@@ -61,6 +63,14 @@ class SandboxTest : public ::testing::Test {
         int fd;
         ASSERT_NE(-1, fd = libc_open("fa", O_WRONLY | O_CREAT | O_EXCL, 0644));
         ASSERT_EQ(2, libc_write(fd, "a\n", 2));
+        ASSERT_EQ(0, libc_close(fd));
+
+        ASSERT_EQ(0, libc_mkdir("dempty", 0755));
+        ASSERT_EQ(0, libc_mkdir("d", 0755));
+
+        ASSERT_NE(-1,
+                  fd = libc_open("d/fb", O_WRONLY | O_CREAT | O_EXCL, 0644));
+        ASSERT_EQ(2, libc_write(fd, "b\n", 2));
         ASSERT_EQ(0, libc_close(fd));
 
         ASSERT_EQ(0, libc_symlink("fa", "la"));
@@ -76,6 +86,10 @@ class SandboxTest : public ::testing::Test {
     void TearDown() override {
         ASSERT_EQ(0, libc_chdir(basedir));
         ASSERT_EQ(0, libc_unlink("fa"));
+        ASSERT_EQ(0, libc_rmdir("dempty"));
+        ASSERT_EQ(0, libc_unlink("d/fb"));
+        ASSERT_EQ(0, libc_rmdir("d"));
+
         ASSERT_EQ(0, libc_unlink("la"));
         ASSERT_EQ(0, libc_unlink("lsh"));
         ASSERT_EQ(0, libc_unlink("lroot"));
@@ -83,11 +97,19 @@ class SandboxTest : public ::testing::Test {
         ASSERT_EQ(0, libc_unlink("l.."));
         ASSERT_EQ(0, libc_unlink("loutbroken"));
         ASSERT_EQ(0, libc_unlink("lbroken"));
-
+        libc_unlink("x");
+        libc_unlink("y");
+        libc_unlink("z");
     }
 };
 
 class Chdir : public SandboxTest {};
+
+#define EXPECT_ERRNO(e, r, op)                                                 \
+    do {                                                                       \
+        EXPECT_EQ(r, op);                                                      \
+        EXPECT_EQ(e, errno);                                                   \
+    } while (0)
 
 TEST_F(Chdir, ParentDirectory) {
     EXPECT_EQ(-1, chdir(".."));
@@ -147,4 +169,9 @@ TEST_F(Chdir, BrokenSymlink) {
 TEST_F(Chdir, BrokenSymlinkOutside) {
     EXPECT_EQ(-1, chdir("loutbroken"));
     EXPECT_EQ(ENOENT, errno);
+}
+
+TEST_F(Chdir, Inside) {
+    EXPECT_ERRNO(0, 0, chdir("d"));
+    EXPECT_ERRNO(0, 0, chdir(".."));
 }
