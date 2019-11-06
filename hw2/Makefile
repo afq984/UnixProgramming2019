@@ -2,6 +2,7 @@ TARGETS = hw2 launcher sandbox.so
 COMMONFLAGS = -g -Wno-attribute-alias
 CFLAGS = $(COMMONFLAGS) -std=gnu99
 CXXFLAGS = $(COMMONFLAGS) -std=c++17
+EXTRATARGETS = test
 
 .PHONY: all
 all: $(TARGETS)
@@ -11,6 +12,15 @@ sandbox.so: sandbox.cc
 
 hw2: launcher
 	cp launcher hw2
+
+test: test.cc
+	$(CXX) -o $@ $(CXXFLAGS) -lgtest_main -lgtest -ldl $^
+
+.PHONY: r
+r: test hw2 sandbox.so
+	rm -rf testroot
+	mkdir testroot
+	cd testroot && ../hw2 -p ../sandbox.so ../test
 
 .PHONY: clean
 clean:

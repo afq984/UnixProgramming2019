@@ -21,15 +21,17 @@ int main(int argc, char **argv) {
     int opt;
     char sopath[PATH_MAX];
     char basedir[PATH_MAX];
-    setpath("default_sopath", default_sopath, sopath);
-    setpath("default_basedir", default_basedir, basedir);
-    while (-1!=(opt = getopt(argc, argv, "p:d:"))) {
+    int sopath_set = 0;
+    int basedir_set = 0;
+    while (-1 != (opt = getopt(argc, argv, "p:d:"))) {
         switch (opt) {
         case 'p':
             setpath("-p", optarg, sopath);
+            sopath_set = 1;
             break;
         case 'd':
             setpath("-d", optarg, basedir);
+            basedir_set = 1;
             break;
         default:
             fprintf(
@@ -46,6 +48,12 @@ int main(int argc, char **argv) {
     if (optind == argc) {
         fprintf(stderr, "no command given.\n");
         return 1;
+    }
+    if (!sopath_set) {
+        setpath("default_sopath", default_sopath, sopath);
+    }
+    if (!basedir_set) {
+        setpath("default_basedir", default_basedir, basedir);
     }
     setenv("LD_PRELOAD", sopath, 1);
     setenv("SANDBOX_BASEDIR", basedir, 1);
