@@ -227,3 +227,40 @@ TEST_F(Chmod, NoSuchFileOrDirectoryOutside) {
     EXPECT_ERRNO(ENOENT, -1, chmod("/does/not/exist", 0755));
     EXPECT_ERRNO(ENOENT, -1, chmod("loutbroken", 0755));
 }
+
+class Chown : public SandboxTest {};
+
+TEST_F(Chown, Inside) {
+    EXPECT_ERRNO(0, 0, chown("dhasfile", getuid(), getgid()));
+    EXPECT_ERRNO(0, 0, chown("dempty", getuid(), getgid()));
+    EXPECT_ERRNO(0, 0, chown("dhasfile/f1", getuid(), getgid()));
+    EXPECT_ERRNO(0, 0, chown("f0", getuid(), getgid()));
+}
+
+TEST_F(Chown, SInside) {
+    EXPECT_ERRNO(0, 0, chown("l0", getuid(), getgid()));
+    EXPECT_ERRNO(0, 0, chown("l1", getuid(), getgid()));
+    EXPECT_ERRNO(0, 0, chown("ldempty", getuid(), getgid()));
+    EXPECT_ERRNO(0, 0, chown("ldhasfile", getuid(), getgid()));
+}
+
+TEST_F(Chown, Outside) {
+    EXPECT_ERRNO(ESBX, -1, chown("..", getuid(), getgid()));
+    EXPECT_ERRNO(ESBX, -1, chown("/", getuid(), getgid()));
+    EXPECT_ERRNO(ESBX, -1, chown("/dev/null", getuid(), getgid()));
+}
+
+TEST_F(Chown, SOutside) {
+    EXPECT_ERRNO(ESBX, -1, chown("lroot", getuid(), getgid()));
+    EXPECT_ERRNO(ESBX, -1, chown("l..", getuid(), getgid()));
+}
+
+TEST_F(Chown, NoSuchFileOrDirectory) {
+    EXPECT_ERRNO(ENOENT, -1, chown("missing", getuid(), getgid()));
+    EXPECT_ERRNO(ENOENT, -1, chown("lbroken", getuid(), getgid()));
+}
+
+TEST_F(Chown, NoSuchFileOrDirectoryOutside) {
+    EXPECT_ERRNO(ENOENT, -1, chown("/does/not/exist", getuid(), getgid()));
+    EXPECT_ERRNO(ENOENT, -1, chown("loutbroken", getuid(), getgid()));
+}
