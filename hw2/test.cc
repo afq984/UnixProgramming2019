@@ -267,30 +267,34 @@ TEST_F(Chown, NoSuchFileOrDirectoryOutside) {
 
 class Exec : public SandboxTest {};
 
-TEST_F(Exec, Execl) { EXPECT_ERRNO(ESBX, -1, execl("/bin/ls", "ls", 0)); }
+char fail_msg[] = "ERROR: EXEC BYPASSED SANDBOX";
+char binecho[] = "/bin/echo";
+char *exec_args[] = {binecho, fail_msg, 0};
+
+TEST_F(Exec, Execl) {
+    EXPECT_ERRNO(ESBX, -1, execl("/bin/echo", "echo", fail_msg, 0));
+}
 
 TEST_F(Exec, Execle) {
-    EXPECT_ERRNO(ESBX, -1, execle("/bin/ls", "ls", 0, environ));
+    EXPECT_ERRNO(ESBX, -1, execle("/bin/echo", "echo", fail_msg, 0, environ));
 }
 
-TEST_F(Exec, Execlp) { EXPECT_ERRNO(ESBX, -1, execlp("ls", "ls", 0)); }
-
-TEST_F(Exec, Execv) {
-    char binls[] = "/bin/ls";
-    char *args[] = {binls, 0};
-    EXPECT_ERRNO(ESBX, -1, execv("/bin/ls", args));
+TEST_F(Exec, Execlp) {
+    EXPECT_ERRNO(ESBX, -1, execlp("echo", "echo", fail_msg, 0));
+    EXPECT_ERRNO(ESBX, -1, execlp("/bin/echo", "echo", fail_msg, 0));
 }
+
+TEST_F(Exec, Execv) { EXPECT_ERRNO(ESBX, -1, execv(binecho, exec_args)); }
 
 TEST_F(Exec, Execve) {
-    char binls[] = "/bin/ls";
-    char *args[] = {binls, 0};
-    EXPECT_ERRNO(ESBX, -1, execve("/bin/ls", args, environ));
+    EXPECT_ERRNO(ESBX, -1, execve("/bin/echo", exec_args, environ));
 }
 
 TEST_F(Exec, Execvp) {
-    char binls[] = "/bin/ls";
-    char *args[] = {binls, 0};
-    EXPECT_ERRNO(ESBX, -1, execv("ls", args));
+    EXPECT_ERRNO(ESBX, -1, execvp("echo", exec_args));
+    EXPECT_ERRNO(ESBX, -1, execvp("/bin/echo", exec_args));
 }
 
-TEST_F(Exec, System) { EXPECT_ERRNO(ESBX, -1, system("ls -l")); }
+TEST_F(Exec, System) {
+    EXPECT_ERRNO(ESBX, -1, system("echo ERROR: EXEC BYPASSED SANDBOX"));
+}
