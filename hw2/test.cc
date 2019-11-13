@@ -56,18 +56,18 @@ libc_decl(mkdir);
 libc_decl(rmdir);
 libc_decl(remove);
 
-#define EXPECT_MAYBE_ERRNO(e, op)                                              \
-    do {                                                                       \
-        int oerrno = errno;                                                    \
-        auto ret = op;                                                         \
-        EXPECT_TRUE(ret == 0 or e == errno)                                    \
-            << #op "\n"                                                        \
-            << "expected retval / errno\n"                                     \
-            << "  one of " << std::setw(6) << 0 << " / " << e << ": "          \
-            << strerror(e) << "\n"                                             \
-            << "     got " << std::setw(6) << ret << " / " << errno << ": "    \
-            << strerror(errno);                                                \
-        errno = oerrno;                                                        \
+#define EXPECT_MAYBE_ERRNO(e, op)                                           \
+    do {                                                                    \
+        int oerrno = errno;                                                 \
+        auto ret = op;                                                      \
+        EXPECT_TRUE(ret == 0 or e == errno)                                 \
+            << #op "\n"                                                     \
+            << "expected retval / errno\n"                                  \
+            << "  one of " << std::setw(6) << 0 << " / " << e << ": "       \
+            << strerror(e) << "\n"                                          \
+            << "     got " << std::setw(6) << ret << " / " << errno << ": " \
+            << strerror(errno);                                             \
+        errno = oerrno;                                                     \
     } while (0)
 
 class SandboxTest : public ::testing::Test {
@@ -127,18 +127,18 @@ class SandboxTest : public ::testing::Test {
 
 class Chdir : public SandboxTest {};
 
-#define EXPECT_ERRNO(e, r, op)                                                 \
-    do {                                                                       \
-        int oerrno = errno;                                                    \
-        auto ret = op;                                                         \
-        EXPECT_TRUE(ret == r and e == errno)                                   \
-            << #op "\n"                                                        \
-            << "         retval / errno\n"                                     \
-            << "expected " << std::setw(6) << r << " / " << e << ": "          \
-            << strerror(e) << "\n"                                             \
-            << "     got " << std::setw(6) << ret << " / " << errno << ": "    \
-            << strerror(errno);                                                \
-        errno = oerrno;                                                        \
+#define EXPECT_ERRNO(e, r, op)                                              \
+    do {                                                                    \
+        int oerrno = errno;                                                 \
+        auto ret = op;                                                      \
+        EXPECT_TRUE(ret == r and e == errno)                                \
+            << #op "\n"                                                     \
+            << "         retval / errno\n"                                  \
+            << "expected " << std::setw(6) << r << " / " << e << ": "       \
+            << strerror(e) << "\n"                                          \
+            << "     got " << std::setw(6) << ret << " / " << errno << ": " \
+            << strerror(errno);                                             \
+        errno = oerrno;                                                     \
     } while (0)
 
 TEST_F(Chdir, ParentDirectory) {
