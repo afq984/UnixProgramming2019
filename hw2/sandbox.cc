@@ -200,7 +200,7 @@ int link(const char *path1, const char *path2) {
     // If path1 names a symbolic link, it  is  implementation-defined  whether
     // link() follows the symbolic link, or creates a new link to the symbolic
     // link itself.
-    if (deny(path1, false) || deny(path2, false)) {
+    if (deny(path1, true) || deny(path2, true)) {
         return -1;
     }
     return libc_link(path1, path2);
