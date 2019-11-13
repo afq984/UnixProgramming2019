@@ -593,6 +593,313 @@ TEST_F(OpenR, LinkOutsideDoesNotExistTmp2) {
     EXPECT_ERRNO(ESBX, -1, open("ltmp2", O_RDONLY));
 }
 
+class OpenAtW : public SandboxTest {};
+
+TEST_F(OpenAtW, IsADirectory) {
+    EXPECT_ERRNO(EISDIR, -1, openat(AT_FDCWD, "dhasfile", O_CREAT | O_WRONLY, 0644));
+    EXPECT_ERRNO(EISDIR, -1, openat(AT_FDCWD, "dempty", O_CREAT | O_WRONLY, 0644));
+}
+
+TEST_F(OpenAtW, LinkIsADirectory) {
+    EXPECT_ERRNO(EISDIR, -1, openat(AT_FDCWD, "ldhasfile", O_CREAT | O_WRONLY, 0644));
+    EXPECT_ERRNO(EISDIR, -1, openat(AT_FDCWD, "ldempty", O_CREAT | O_WRONLY, 0644));
+}
+
+TEST_F(OpenAtW, Exists) {
+    EXPECT_OK(-1, openat(AT_FDCWD, "f0", O_CREAT | O_WRONLY, 0644));
+    EXPECT_OK(-1, openat(AT_FDCWD, "dhasfile/f1", O_CREAT | O_WRONLY, 0644));
+}
+
+TEST_F(OpenAtW, LinkExists) {
+    EXPECT_OK(-1, openat(AT_FDCWD, "l0", O_CREAT | O_WRONLY, 0644));
+    EXPECT_OK(-1, openat(AT_FDCWD, "l1", O_CREAT | O_WRONLY, 0644));
+}
+
+TEST_F(OpenAtW, ExistsExcl) {
+    EXPECT_ERRNO(EEXIST, -1, openat(AT_FDCWD, "f0", O_CREAT | O_WRONLY | O_EXCL, 0644));
+    EXPECT_ERRNO(EEXIST, -1, openat(AT_FDCWD, "dhasfile/f1", O_CREAT | O_WRONLY | O_EXCL, 0644));
+}
+
+TEST_F(OpenAtW, LinkExistsExcl) {
+    EXPECT_ERRNO(EEXIST, -1, openat(AT_FDCWD, "l0", O_CREAT | O_WRONLY | O_EXCL, 0644));
+    EXPECT_ERRNO(EEXIST, -1, openat(AT_FDCWD, "l1", O_CREAT | O_WRONLY | O_EXCL, 0644));
+}
+
+TEST_F(OpenAtW, Outside) {
+    EXPECT_ERRNO(ESBX, -1, openat(AT_FDCWD, "/tmp/open-outside", O_CREAT | O_WRONLY, 0644));
+}
+
+TEST_F(OpenAtW, OutsideDir) {
+    EXPECT_ERRNO(ESBX, -1, openat(AT_FDCWD, "/tmp/does/not/exist/outside", O_CREAT | O_WRONLY, 0644));
+}
+
+TEST_F(OpenAtW, NormalOperation) {
+    EXPECT_OK(-1, openat(AT_FDCWD, "x", O_CREAT | O_WRONLY, 0644));
+}
+
+TEST_F(OpenAtW, NormalOperationOnLink) {
+    EXPECT_OK(-1, openat(AT_FDCWD, "lx", O_CREAT | O_WRONLY, 0644));
+}
+
+TEST_F(OpenAtW, LinkOutside) {
+    EXPECT_ERRNO(ESBX, -1, openat(AT_FDCWD, "ltmp", O_CREAT | O_WRONLY, 0644));
+}
+
+TEST_F(OpenAtW, LinkOutsideND) {
+    EXPECT_ERRNO(ESBX, -1, openat(AT_FDCWD, "ltmp2", O_CREAT | O_WRONLY, 0644));
+}
+
+class OpenAtR : public SandboxTest {};
+
+TEST_F(OpenAtR, Exists) {
+    EXPECT_OK(-1, openat(AT_FDCWD, "f0", O_RDONLY));
+    EXPECT_OK(-1, openat(AT_FDCWD, "dhasfile/f1", O_RDONLY));
+}
+
+TEST_F(OpenAtR, LinkExists) {
+    EXPECT_OK(-1, openat(AT_FDCWD, "l0", O_RDONLY));
+    EXPECT_OK(-1, openat(AT_FDCWD, "l1", O_RDONLY));
+}
+
+TEST_F(OpenAtR, Outside) {
+    EXPECT_ERRNO(ESBX, -1, openat(AT_FDCWD, "/dev/null", O_RDONLY));
+}
+
+TEST_F(OpenAtR, LinkOutside) {
+    EXPECT_ERRNO(ESBX, -1, openat(AT_FDCWD, "lsh", O_RDONLY));
+}
+
+TEST_F(OpenAtR, LinkOutsideDoesNotExist) {
+    EXPECT_ERRNO(ESBX, -1, openat(AT_FDCWD, "loutbroken", O_RDONLY));
+}
+
+TEST_F(OpenAtR, DoesNotExist) {
+    EXPECT_ERRNO(ENOENT, -1, openat(AT_FDCWD, "x", O_RDONLY));
+}
+
+TEST_F(OpenAtR, NormalOperationOnLink) {
+    EXPECT_ERRNO(ENOENT, -1, openat(AT_FDCWD, "lx", O_RDONLY));
+}
+
+TEST_F(OpenAtR, LinkOutsideDoesNotExistTmp) {
+    EXPECT_ERRNO(ESBX, -1, openat(AT_FDCWD, "ltmp", O_RDONLY));
+}
+
+TEST_F(OpenAtR, LinkOutsideDoesNotExistTmp2) {
+    EXPECT_ERRNO(ESBX, -1, openat(AT_FDCWD, "ltmp2", O_RDONLY));
+}
+
+class OpenAtTestRoot : public SandboxTest {
+  protected:
+    int at_troot;
+
+  public:
+    void SetUp() override {
+        SandboxTest::SetUp();
+        EXPECT_OK(-1, at_troot = libc_open(basedir, O_RDONLY));
+        EXPECT_OK(-1, libc_chdir("dhasfile"));
+    }
+    void TearDown() override {
+        SandboxTest::TearDown();
+        ASSERT_EQ(0, close(at_troot));
+    }
+};
+
+class OpenAtTestRootW : public OpenAtTestRoot {};
+
+TEST_F(OpenAtTestRootW, IsADirectory) {
+    EXPECT_ERRNO(EISDIR, -1, openat(at_troot, "dhasfile", O_CREAT | O_WRONLY, 0644));
+    EXPECT_ERRNO(EISDIR, -1, openat(at_troot, "dempty", O_CREAT | O_WRONLY, 0644));
+}
+
+TEST_F(OpenAtTestRootW, LinkIsADirectory) {
+    EXPECT_ERRNO(EISDIR, -1, openat(at_troot, "ldhasfile", O_CREAT | O_WRONLY, 0644));
+    EXPECT_ERRNO(EISDIR, -1, openat(at_troot, "ldempty", O_CREAT | O_WRONLY, 0644));
+}
+
+TEST_F(OpenAtTestRootW, Exists) {
+    EXPECT_OK(-1, openat(at_troot, "f0", O_CREAT | O_WRONLY, 0644));
+    EXPECT_OK(-1, openat(at_troot, "dhasfile/f1", O_CREAT | O_WRONLY, 0644));
+}
+
+TEST_F(OpenAtTestRootW, LinkExists) {
+    EXPECT_OK(-1, openat(at_troot, "l0", O_CREAT | O_WRONLY, 0644));
+    EXPECT_OK(-1, openat(at_troot, "l1", O_CREAT | O_WRONLY, 0644));
+}
+
+TEST_F(OpenAtTestRootW, ExistsExcl) {
+    EXPECT_ERRNO(EEXIST, -1, openat(at_troot, "f0", O_CREAT | O_WRONLY | O_EXCL, 0644));
+    EXPECT_ERRNO(EEXIST, -1, openat(at_troot, "dhasfile/f1", O_CREAT | O_WRONLY | O_EXCL, 0644));
+}
+
+TEST_F(OpenAtTestRootW, LinkExistsExcl) {
+    EXPECT_ERRNO(EEXIST, -1, openat(at_troot, "l0", O_CREAT | O_WRONLY | O_EXCL, 0644));
+    EXPECT_ERRNO(EEXIST, -1, openat(at_troot, "l1", O_CREAT | O_WRONLY | O_EXCL, 0644));
+}
+
+TEST_F(OpenAtTestRootW, Outside) {
+    EXPECT_ERRNO(ESBX, -1, openat(at_troot, "/tmp/open-outside", O_CREAT | O_WRONLY, 0644));
+}
+
+TEST_F(OpenAtTestRootW, OutsideDir) {
+    EXPECT_ERRNO(ESBX, -1, openat(at_troot, "/tmp/does/not/exist/outside", O_CREAT | O_WRONLY, 0644));
+}
+
+TEST_F(OpenAtTestRootW, NormalOperation) {
+    EXPECT_OK(-1, openat(at_troot, "x", O_CREAT | O_WRONLY, 0644));
+}
+
+TEST_F(OpenAtTestRootW, NormalOperationOnLink) {
+    EXPECT_OK(-1, openat(at_troot, "lx", O_CREAT | O_WRONLY, 0644));
+}
+
+TEST_F(OpenAtTestRootW, LinkOutside) {
+    EXPECT_ERRNO(ESBX, -1, openat(at_troot, "ltmp", O_CREAT | O_WRONLY, 0644));
+}
+
+TEST_F(OpenAtTestRootW, LinkOutsideND) {
+    EXPECT_ERRNO(ESBX, -1, openat(at_troot, "ltmp2", O_CREAT | O_WRONLY, 0644));
+}
+
+class OpenAtTestRootR : public OpenAtTestRoot {};
+
+TEST_F(OpenAtTestRootR, Exists) {
+    EXPECT_OK(-1, openat(at_troot, "f0", O_RDONLY));
+    EXPECT_OK(-1, openat(at_troot, "dhasfile/f1", O_RDONLY));
+}
+
+TEST_F(OpenAtTestRootR, LinkExists) {
+    EXPECT_OK(-1, openat(at_troot, "l0", O_RDONLY));
+    EXPECT_OK(-1, openat(at_troot, "l1", O_RDONLY));
+}
+
+TEST_F(OpenAtTestRootR, Outside) {
+    EXPECT_ERRNO(ESBX, -1, openat(at_troot, "/dev/null", O_RDONLY));
+}
+
+TEST_F(OpenAtTestRootR, LinkOutside) {
+    EXPECT_ERRNO(ESBX, -1, openat(at_troot, "lsh", O_RDONLY));
+}
+
+TEST_F(OpenAtTestRootR, LinkOutsideDoesNotExist) {
+    EXPECT_ERRNO(ESBX, -1, openat(at_troot, "loutbroken", O_RDONLY));
+}
+
+TEST_F(OpenAtTestRootR, DoesNotExist) {
+    EXPECT_ERRNO(ENOENT, -1, openat(at_troot, "x", O_RDONLY));
+}
+
+TEST_F(OpenAtTestRootR, NormalOperationOnLink) {
+    EXPECT_ERRNO(ENOENT, -1, openat(at_troot, "lx", O_RDONLY));
+}
+
+TEST_F(OpenAtTestRootR, LinkOutsideDoesNotExistTmp) {
+    EXPECT_ERRNO(ESBX, -1, openat(at_troot, "ltmp", O_RDONLY));
+}
+
+TEST_F(OpenAtTestRootR, LinkOutsideDoesNotExistTmp2) {
+    EXPECT_ERRNO(ESBX, -1, openat(at_troot, "ltmp2", O_RDONLY));
+}
+
+class OpenAtSubDir : public SandboxTest {
+  protected:
+    int at_subd;
+
+  public:
+    void SetUp() override {
+        SandboxTest::SetUp();
+        EXPECT_OK(-1, at_subd = libc_open("dhasfile", O_RDONLY));
+    }
+    void TearDown() override {
+        SandboxTest::TearDown();
+        ASSERT_EQ(0, close(at_subd));
+    }
+};
+
+class OpenAtSubDirW : public OpenAtSubDir {};
+
+TEST_F(OpenAtSubDirW, IsADirectory) {
+    EXPECT_ERRNO(EISDIR, -1, openat(at_subd, "../dhasfile", O_CREAT | O_WRONLY, 0644));
+    EXPECT_ERRNO(EISDIR, -1, openat(at_subd, "../dempty", O_CREAT | O_WRONLY, 0644));
+}
+
+TEST_F(OpenAtSubDirW, LinkIsADirectory) {
+    EXPECT_ERRNO(EISDIR, -1, openat(at_subd, "../ldhasfile", O_CREAT | O_WRONLY, 0644));
+    EXPECT_ERRNO(EISDIR, -1, openat(at_subd, "../ldempty", O_CREAT | O_WRONLY, 0644));
+}
+
+TEST_F(OpenAtSubDirW, Exists) {
+    EXPECT_OK(-1, openat(at_subd, "../f0", O_CREAT | O_WRONLY, 0644));
+    EXPECT_OK(-1, openat(at_subd, "f1", O_CREAT | O_WRONLY, 0644));
+}
+
+TEST_F(OpenAtSubDirW, LinkExists) {
+    EXPECT_OK(-1, openat(at_subd, "../l0", O_CREAT | O_WRONLY, 0644));
+    EXPECT_OK(-1, openat(at_subd, "../l1", O_CREAT | O_WRONLY, 0644));
+}
+
+TEST_F(OpenAtSubDirW, ExistsExcl) {
+    EXPECT_ERRNO(EEXIST, -1, openat(at_subd, "../f0", O_CREAT | O_WRONLY | O_EXCL, 0644));
+    EXPECT_ERRNO(EEXIST, -1, openat(at_subd, "f1", O_CREAT | O_WRONLY | O_EXCL, 0644));
+}
+
+TEST_F(OpenAtSubDirW, LinkExistsExcl) {
+    EXPECT_ERRNO(EEXIST, -1, openat(at_subd, "../l0", O_CREAT | O_WRONLY | O_EXCL, 0644));
+    EXPECT_ERRNO(EEXIST, -1, openat(at_subd, "../l1", O_CREAT | O_WRONLY | O_EXCL, 0644));
+}
+
+TEST_F(OpenAtSubDirW, NormalOperation) {
+    EXPECT_OK(-1, openat(at_subd, "../x", O_CREAT | O_WRONLY, 0644));
+}
+
+TEST_F(OpenAtSubDirW, NormalOperationOnLink) {
+    EXPECT_OK(-1, openat(at_subd, "../lx", O_CREAT | O_WRONLY, 0644));
+}
+
+TEST_F(OpenAtSubDirW, LinkOutside) {
+    EXPECT_ERRNO(ESBX, -1, openat(at_subd, "../ltmp", O_CREAT | O_WRONLY, 0644));
+}
+
+TEST_F(OpenAtSubDirW, LinkOutsideND) {
+    EXPECT_ERRNO(ESBX, -1, openat(at_subd, "../ltmp2", O_CREAT | O_WRONLY, 0644));
+}
+
+class OpenAtSubDirR : public OpenAtSubDir {};
+
+TEST_F(OpenAtSubDirR, Exists) {
+    EXPECT_OK(-1, openat(at_subd, "../f0", O_RDONLY));
+    EXPECT_OK(-1, openat(at_subd, "f1", O_RDONLY));
+}
+
+TEST_F(OpenAtSubDirR, LinkExists) {
+    EXPECT_OK(-1, openat(at_subd, "../l0", O_RDONLY));
+    EXPECT_OK(-1, openat(at_subd, "../l1", O_RDONLY));
+}
+
+TEST_F(OpenAtSubDirR, LinkOutside) {
+    EXPECT_ERRNO(ESBX, -1, openat(at_subd, "../lsh", O_RDONLY));
+}
+
+TEST_F(OpenAtSubDirR, LinkOutsideDoesNotExist) {
+    EXPECT_ERRNO(ESBX, -1, openat(at_subd, "../loutbroken", O_RDONLY));
+}
+
+TEST_F(OpenAtSubDirR, DoesNotExist) {
+    EXPECT_ERRNO(ENOENT, -1, openat(at_subd, "../x", O_RDONLY));
+}
+
+TEST_F(OpenAtSubDirR, NormalOperationOnLink) {
+    EXPECT_ERRNO(ENOENT, -1, openat(at_subd, "../lx", O_RDONLY));
+}
+
+TEST_F(OpenAtSubDirR, LinkOutsideDoesNotExistTmp) {
+    EXPECT_ERRNO(ESBX, -1, openat(at_subd, "../ltmp", O_RDONLY));
+}
+
+TEST_F(OpenAtSubDirR, LinkOutsideDoesNotExistTmp2) {
+    EXPECT_ERRNO(ESBX, -1, openat(at_subd, "../ltmp2", O_RDONLY));
+}
+
 class Exec : public SandboxTest {};
 
 char fail_msg[] = "ERROR: EXEC BYPASSED SANDBOX";
