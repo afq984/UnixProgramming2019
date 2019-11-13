@@ -497,6 +497,102 @@ TEST_F(Link, Path1Outside) {
     EXPECT_ERRNO(ESBX, -1, link("/bin/sh", "x"));
 }
 
+class OpenW : public SandboxTest {};
+
+TEST_F(OpenW, IsADirectory) {
+    EXPECT_ERRNO(EISDIR, -1, open("dhasfile", O_CREAT | O_WRONLY, 0644));
+    EXPECT_ERRNO(EISDIR, -1, open("dempty", O_CREAT | O_WRONLY, 0644));
+}
+
+TEST_F(OpenW, LinkIsADirectory) {
+    EXPECT_ERRNO(EISDIR, -1, open("ldhasfile", O_CREAT | O_WRONLY, 0644));
+    EXPECT_ERRNO(EISDIR, -1, open("ldempty", O_CREAT | O_WRONLY, 0644));
+}
+
+TEST_F(OpenW, Exists) {
+    EXPECT_OK(-1, open("f0", O_CREAT | O_WRONLY, 0644));
+    EXPECT_OK(-1, open("dhasfile/f1", O_CREAT | O_WRONLY, 0644));
+}
+
+TEST_F(OpenW, LinkExists) {
+    EXPECT_OK(-1, open("l0", O_CREAT | O_WRONLY, 0644));
+    EXPECT_OK(-1, open("l1", O_CREAT | O_WRONLY, 0644));
+}
+
+TEST_F(OpenW, ExistsExcl) {
+    EXPECT_ERRNO(EEXIST, -1, open("f0", O_CREAT | O_WRONLY | O_EXCL, 0644));
+    EXPECT_ERRNO(EEXIST, -1, open("dhasfile/f1", O_CREAT | O_WRONLY | O_EXCL, 0644));
+}
+
+TEST_F(OpenW, LinkExistsExcl) {
+    EXPECT_ERRNO(EEXIST, -1, open("l0", O_CREAT | O_WRONLY | O_EXCL, 0644));
+    EXPECT_ERRNO(EEXIST, -1, open("l1", O_CREAT | O_WRONLY | O_EXCL, 0644));
+}
+
+TEST_F(OpenW, Outside) {
+    EXPECT_ERRNO(ESBX, -1, open("/tmp/open-outside", O_CREAT | O_WRONLY, 0644));
+}
+
+TEST_F(OpenW, OutsideDir) {
+    EXPECT_ERRNO(ESBX, -1, open("/tmp/does/not/exist/outside", O_CREAT | O_WRONLY, 0644));
+}
+
+TEST_F(OpenW, NormalOperation) {
+    EXPECT_OK(-1, open("x", O_CREAT | O_WRONLY, 0644));
+}
+
+TEST_F(OpenW, NormalOperationOnLink) {
+    EXPECT_OK(-1, open("lx", O_CREAT | O_WRONLY, 0644));
+}
+
+TEST_F(OpenW, LinkOutside) {
+    EXPECT_ERRNO(ESBX, -1, open("ltmp", O_CREAT | O_WRONLY, 0644));
+}
+
+TEST_F(OpenW, LinkOutsideND) {
+    EXPECT_ERRNO(ESBX, -1, open("ltmp2", O_CREAT | O_WRONLY, 0644));
+}
+
+class OpenR : public SandboxTest {};
+
+TEST_F(OpenR, Exists) {
+    EXPECT_OK(-1, open("f0", O_RDONLY));
+    EXPECT_OK(-1, open("dhasfile/f1", O_RDONLY));
+}
+
+TEST_F(OpenR, LinkExists) {
+    EXPECT_OK(-1, open("l0", O_RDONLY));
+    EXPECT_OK(-1, open("l1", O_RDONLY));
+}
+
+TEST_F(OpenR, Outside) {
+    EXPECT_ERRNO(ESBX, -1, open("/dev/null", O_RDONLY));
+}
+
+TEST_F(OpenR, LinkOutside) {
+    EXPECT_ERRNO(ESBX, -1, open("lsh", O_RDONLY));
+}
+
+TEST_F(OpenR, LinkOutsideDoesNotExist) {
+    EXPECT_ERRNO(ESBX, -1, open("loutbroken", O_RDONLY));
+}
+
+TEST_F(OpenR, DoesNotExist) {
+    EXPECT_ERRNO(ENOENT, -1, open("x", O_RDONLY));
+}
+
+TEST_F(OpenR, NormalOperationOnLink) {
+    EXPECT_ERRNO(ENOENT, -1, open("lx", O_RDONLY));
+}
+
+TEST_F(OpenR, LinkOutsideDoesNotExistTmp) {
+    EXPECT_ERRNO(ESBX, -1, open("ltmp", O_RDONLY));
+}
+
+TEST_F(OpenR, LinkOutsideDoesNotExistTmp2) {
+    EXPECT_ERRNO(ESBX, -1, open("ltmp2", O_RDONLY));
+}
+
 class Exec : public SandboxTest {};
 
 char fail_msg[] = "ERROR: EXEC BYPASSED SANDBOX";
