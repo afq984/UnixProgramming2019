@@ -481,6 +481,22 @@ TEST_F(Link, NormalOperation) {
     EXPECT_ERRNO(0, 0, link("dhasfile/f1", "y"));
 }
 
+TEST_F(Link, OnSymlink) {
+    EXPECT_ERRNO(EEXIST, -1, link("f0", "ltmp"));
+}
+
+TEST_F(Link, Directory) {
+    EXPECT_ERRNO(EPERM, -1, link("dempty", "x"));
+}
+
+TEST_F(Link, Path2Outside) {
+    EXPECT_ERRNO(ESBX, -1, link("f0", mktemp(strdupa("/tmp/testXXXXXX"))));
+}
+
+TEST_F(Link, Path1Outside) {
+    EXPECT_ERRNO(ESBX, -1, link("/bin/sh", "x"));
+}
+
 class Exec : public SandboxTest {};
 
 char fail_msg[] = "ERROR: EXEC BYPASSED SANDBOX";
