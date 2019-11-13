@@ -200,6 +200,11 @@ TEST_F(Chdir, Inside) {
     EXPECT_ERRNO(0, 0, chdir(".."));
 }
 
+TEST_F(Chdir, InsideOutside) {
+    EXPECT_ERRNO(0, 0, chdir("dempty"));
+    EXPECT_ERRNO(ESBX, -1, chdir("../.."));
+}
+
 class Chmod : public SandboxTest {};
 
 TEST_F(Chmod, Inside) {
