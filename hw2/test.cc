@@ -15,8 +15,6 @@
 
 // the errno the sandbox should set when denying function calls
 const int ESBX = EACCES;
-// the errno the sandbox should set when ENOENT happens outside of basedir
-const int EOUT = ENOENT;
 
 std::runtime_error rtef(const char *fmt, ...) {
     char *errcstr;
@@ -58,18 +56,18 @@ libc_decl(mkdir);
 libc_decl(rmdir);
 libc_decl(remove);
 
-#define EXPECT_MAYBE_ERRNO(e, op)                                           \
-    do {                                                                    \
-        int oerrno = errno;                                                 \
-        auto ret = op;                                                      \
-        EXPECT_TRUE(ret == 0 or e == errno)                                 \
-            << #op "\n"                                                     \
-            << "expected retval / errno\n"                                  \
-            << "  one of " << std::setw(6) << 0 << " / " << e << ": "       \
-            << strerror(e) << "\n"                                          \
-            << "     got " << std::setw(6) << ret << " / " << errno << ": " \
-            << strerror(errno);                                             \
-        errno = oerrno;                                                     \
+#define EXPECT_MAYBE_ERRNO(e, op)                                                           \
+    do {                                                                                    \
+        int oerrno = errno;                                                                 \
+        auto ret = op;                                                                      \
+        EXPECT_TRUE(ret == 0 or e == errno)                                                 \
+            << #op "\n"                                                                     \
+            << "expected retval / errno\n"                                                  \
+            << "  one of " << std::setw(6) << 0 << " / " << std::setw(5) << e << ": "       \
+            << strerror(e) << "\n"                                                          \
+            << "     got " << std::setw(6) << ret << " / " << std::setw(5) << errno << ": " \
+            << strerror(errno);                                                             \
+        errno = oerrno;                                                                     \
     } while (0)
 
 class SandboxTest : public ::testing::Test {
@@ -101,6 +99,11 @@ class SandboxTest : public ::testing::Test {
         ASSERT_EQ(0, libc_symlink("..", "l.."));
         ASSERT_EQ(0, libc_symlink("/broken-symlink", "loutbroken"));
         ASSERT_EQ(0, libc_symlink("broken-symlink", "lbroken"));
+        ASSERT_EQ(0, libc_symlink("x", "lx"));
+        ASSERT_EQ(0, libc_symlink("y", "ly"));
+        ASSERT_EQ(0, libc_symlink("z", "lz"));
+        ASSERT_EQ(0, libc_symlink(mktemp(strdupa("/tmp/testXXXXXX")), "ltmp"));
+        ASSERT_EQ(0, libc_symlink(mktemp(strdupa("/t/m/p/testXXXXXX")), "ltmp2"));
         errno = 0;
     }
 
@@ -121,6 +124,11 @@ class SandboxTest : public ::testing::Test {
         EXPECT_MAYBE_ERRNO(ENOENT, libc_unlink("l.."));
         EXPECT_MAYBE_ERRNO(ENOENT, libc_unlink("loutbroken"));
         EXPECT_MAYBE_ERRNO(ENOENT, libc_unlink("lbroken"));
+        EXPECT_MAYBE_ERRNO(ENOENT, libc_unlink("lx"));
+        EXPECT_MAYBE_ERRNO(ENOENT, libc_unlink("ly"));
+        EXPECT_MAYBE_ERRNO(ENOENT, libc_unlink("lz"));
+        EXPECT_MAYBE_ERRNO(ENOENT, libc_unlink("ltmp"));
+        EXPECT_MAYBE_ERRNO(ENOENT, libc_unlink("ltmp2"));
         EXPECT_MAYBE_ERRNO(ENOENT, libc_remove("x"));
         EXPECT_MAYBE_ERRNO(ENOENT, libc_remove("y"));
         EXPECT_MAYBE_ERRNO(ENOENT, libc_remove("z"));
@@ -129,18 +137,27 @@ class SandboxTest : public ::testing::Test {
 
 class Chdir : public SandboxTest {};
 
-#define EXPECT_ERRNO(e, r, op)                                              \
-    do {                                                                    \
-        int oerrno = errno;                                                 \
-        auto ret = op;                                                      \
-        EXPECT_TRUE(ret == r and e == errno)                                \
-            << #op "\n"                                                     \
-            << "         retval / errno\n"                                  \
-            << "expected " << std::setw(6) << r << " / " << e << ": "       \
-            << strerror(e) << "\n"                                          \
-            << "     got " << std::setw(6) << ret << " / " << errno << ": " \
-            << strerror(errno);                                             \
-        errno = oerrno;                                                     \
+#define EXPECT_ERRNO(e, r, op)                                                              \
+    do {                                                                                    \
+        int oerrno = errno;                                                                 \
+        auto ret = op;                                                                      \
+        EXPECT_TRUE(ret == r and e == errno)                                                \
+            << #op "\n"                                                                     \
+            << "         retval / errno\n"                                                  \
+            << "expected " << std::setw(6) << r << " / " << std::setw(5) << e << ": "       \
+            << strerror(e) << "\n"                                                          \
+            << "     got " << std::setw(6) << ret << " / " << std::setw(5) << errno << ": " \
+            << strerror(errno);                                                             \
+        errno = oerrno;                                                                     \
+    } while (0)
+
+#define EXPECT_OK(nr, op)                                     \
+    do {                                                      \
+        int oerrno = errno;                                   \
+        auto ret = op;                                        \
+        EXPECT_NE(nr, op)                                     \
+            << "errno: " << errno << ": " << strerror(errno); \
+        errno = oerrno;                                       \
     } while (0)
 
 TEST_F(Chdir, ParentDirectory) {
@@ -188,11 +205,11 @@ TEST_F(Chdir, BrokenSymlink) {
 }
 
 TEST_F(Chdir, NoSuchFileOrDirectoryOutside) {
-    EXPECT_ERRNO(EOUT, -1, chdir("/does/not/exist"));
+    EXPECT_ERRNO(ESBX, -1, chdir("/does/not/exist"));
 }
 
 TEST_F(Chdir, BrokenSymlinkOutside) {
-    EXPECT_ERRNO(EOUT, -1, chdir("loutbroken"));
+    EXPECT_ERRNO(ESBX, -1, chdir("loutbroken"));
 }
 
 TEST_F(Chdir, Inside) {
@@ -277,6 +294,52 @@ TEST_F(Chown, NoSuchFileOrDirectory) {
 TEST_F(Chown, NoSuchFileOrDirectoryOutside) {
     EXPECT_ERRNO(ENOENT, -1, chown("/does/not/exist", getuid(), getgid()));
     EXPECT_ERRNO(ENOENT, -1, chown("loutbroken", getuid(), getgid()));
+}
+
+class Creat : public SandboxTest {};
+
+TEST_F(Creat, IsADirectory) {
+    EXPECT_ERRNO(EISDIR, -1, creat("dhasfile", 0644));
+    EXPECT_ERRNO(EISDIR, -1, creat("dempty", 0644));
+}
+
+TEST_F(Creat, LinkIsADirectory) {
+    EXPECT_ERRNO(EISDIR, -1, creat("ldhasfile", 0644));
+    EXPECT_ERRNO(EISDIR, -1, creat("ldempty", 0644));
+}
+
+TEST_F(Creat, Exists) {
+    EXPECT_OK(-1, creat("f0", 0644));
+    EXPECT_OK(-1, creat("dhasfile/f1", 0644));
+}
+
+TEST_F(Creat, LinkExists) {
+    EXPECT_OK(-1, creat("l0", 0644));
+    EXPECT_OK(-1, creat("l1", 0644));
+}
+
+TEST_F(Creat, Outside) {
+    EXPECT_ERRNO(ESBX, -1, creat("/tmp/creat-outside", 0644));
+}
+
+TEST_F(Creat, OutsideDir) {
+    EXPECT_ERRNO(ESBX, -1, creat("/tmp/does/not/exist/outside", 0644));
+}
+
+TEST_F(Creat, NormalOperation) {
+    EXPECT_OK(-1, creat("x", 0644));
+}
+
+TEST_F(Creat, NormalOperationOnLink) {
+    EXPECT_OK(-1, creat("lx", 0644));
+}
+
+TEST_F(Creat, LinkOutside) {
+    EXPECT_ERRNO(ESBX, -1, creat("ltmp", 0644));
+}
+
+TEST_F(Creat, LinkOutsideND) {
+    EXPECT_ERRNO(ESBX, -1, creat("ltmp2", 0644));
 }
 
 class Exec : public SandboxTest {};
