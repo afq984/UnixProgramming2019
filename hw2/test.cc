@@ -54,6 +54,21 @@ libc_decl(symlink);
 libc_decl(chdir);
 libc_decl(mkdir);
 libc_decl(rmdir);
+libc_decl(remove);
+
+#define EXPECT_MAYBE_ERRNO(e, op)                                              \
+    do {                                                                       \
+        int oerrno = errno;                                                    \
+        auto ret = op;                                                         \
+        EXPECT_TRUE(ret == 0 or e == errno)                                    \
+            << #op "\n"                                                        \
+            << "expected retval / errno\n"                                     \
+            << "  one of " << std::setw(6) << 0 << " / " << e << ": "          \
+            << strerror(e) << "\n"                                             \
+            << "     got " << std::setw(6) << ret << " / " << errno << ": "    \
+            << strerror(errno);                                                \
+        errno = oerrno;                                                        \
+    } while (0)
 
 class SandboxTest : public ::testing::Test {
   protected:
@@ -88,25 +103,25 @@ class SandboxTest : public ::testing::Test {
     }
 
     void TearDown() override {
-        ASSERT_EQ(0, libc_chdir(basedir));
-        ASSERT_EQ(0, libc_unlink("f0"));
-        ASSERT_EQ(0, libc_rmdir("dempty"));
-        ASSERT_EQ(0, libc_unlink("dhasfile/f1"));
-        ASSERT_EQ(0, libc_rmdir("dhasfile"));
+        EXPECT_MAYBE_ERRNO(ENOENT, libc_chdir(basedir));
+        EXPECT_MAYBE_ERRNO(ENOENT, libc_unlink("f0"));
+        EXPECT_MAYBE_ERRNO(ENOENT, libc_rmdir("dempty"));
+        EXPECT_MAYBE_ERRNO(ENOENT, libc_unlink("dhasfile/f1"));
+        EXPECT_MAYBE_ERRNO(ENOENT, libc_rmdir("dhasfile"));
 
-        ASSERT_EQ(0, libc_unlink("l0"));
-        ASSERT_EQ(0, libc_unlink("l1"));
-        ASSERT_EQ(0, libc_unlink("ldempty"));
-        ASSERT_EQ(0, libc_unlink("ldhasfile"));
-        ASSERT_EQ(0, libc_unlink("lsh"));
-        ASSERT_EQ(0, libc_unlink("lroot"));
-        ASSERT_EQ(0, libc_unlink("l."));
-        ASSERT_EQ(0, libc_unlink("l.."));
-        ASSERT_EQ(0, libc_unlink("loutbroken"));
-        ASSERT_EQ(0, libc_unlink("lbroken"));
-        libc_unlink("x");
-        libc_unlink("y");
-        libc_unlink("z");
+        EXPECT_MAYBE_ERRNO(ENOENT, libc_unlink("l0"));
+        EXPECT_MAYBE_ERRNO(ENOENT, libc_unlink("l1"));
+        EXPECT_MAYBE_ERRNO(ENOENT, libc_unlink("ldempty"));
+        EXPECT_MAYBE_ERRNO(ENOENT, libc_unlink("ldhasfile"));
+        EXPECT_MAYBE_ERRNO(ENOENT, libc_unlink("lsh"));
+        EXPECT_MAYBE_ERRNO(ENOENT, libc_unlink("lroot"));
+        EXPECT_MAYBE_ERRNO(ENOENT, libc_unlink("l."));
+        EXPECT_MAYBE_ERRNO(ENOENT, libc_unlink("l.."));
+        EXPECT_MAYBE_ERRNO(ENOENT, libc_unlink("loutbroken"));
+        EXPECT_MAYBE_ERRNO(ENOENT, libc_unlink("lbroken"));
+        EXPECT_MAYBE_ERRNO(ENOENT, libc_remove("x"));
+        EXPECT_MAYBE_ERRNO(ENOENT, libc_remove("y"));
+        EXPECT_MAYBE_ERRNO(ENOENT, libc_remove("z"));
     }
 };
 
