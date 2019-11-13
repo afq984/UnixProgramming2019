@@ -459,7 +459,7 @@ TEST_F(FopenR, LinkOutsideDoesNotExist) {
 }
 
 TEST_F(FopenR, DoesNotExist) {
-    EXPECT_ERRNO(ENOENT,(FILE *)nullptr, fopen("x", "r"));
+    EXPECT_ERRNO(ENOENT, (FILE *)nullptr, fopen("x", "r"));
 }
 
 TEST_F(FopenR, NormalOperationOnLink) {
@@ -472,6 +472,13 @@ TEST_F(FopenR, LinkOutsideDoesNotExistTmp) {
 
 TEST_F(FopenR, LinkOutsideDoesNotExistTmp2) {
     EXPECT_ERRNO(ESBX, (FILE *)nullptr, fopen("ltmp2", "r"));
+}
+
+class Link : public SandboxTest {};
+
+TEST_F(Link, NormalOperation) {
+    EXPECT_ERRNO(0, 0, link("f0", "x"));
+    EXPECT_ERRNO(0, 0, link("dhasfile/f1", "y"));
 }
 
 class Exec : public SandboxTest {};
