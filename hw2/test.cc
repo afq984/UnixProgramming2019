@@ -342,6 +342,138 @@ TEST_F(Creat, LinkOutsideND) {
     EXPECT_ERRNO(ESBX, -1, creat("ltmp2", 0644));
 }
 
+class FopenW : public SandboxTest {};
+
+TEST_F(FopenW, IsADirectory) {
+    EXPECT_ERRNO(EISDIR, (FILE *)nullptr, fopen("dhasfile", "w"));
+    EXPECT_ERRNO(EISDIR, (FILE *)nullptr, fopen("dempty", "w"));
+}
+
+TEST_F(FopenW, LinkIsADirectory) {
+    EXPECT_ERRNO(EISDIR, (FILE *)nullptr, fopen("ldhasfile", "w"));
+    EXPECT_ERRNO(EISDIR, (FILE *)nullptr, fopen("ldempty", "w"));
+}
+
+TEST_F(FopenW, Exists) {
+    EXPECT_OK((FILE *)nullptr, fopen("f0", "w"));
+    EXPECT_OK((FILE *)nullptr, fopen("dhasfile/f1", "w"));
+}
+
+TEST_F(FopenW, LinkExists) {
+    EXPECT_OK((FILE *)nullptr, fopen("l0", "w"));
+    EXPECT_OK((FILE *)nullptr, fopen("l1", "w"));
+}
+
+TEST_F(FopenW, Outside) {
+    EXPECT_ERRNO(ESBX, (FILE *)nullptr, fopen("/tmp/fopen-outside", "w"));
+}
+
+TEST_F(FopenW, OutsideDir) {
+    EXPECT_ERRNO(ESBX, (FILE *)nullptr, fopen("/tmp/does/not/exist/outside", "w"));
+}
+
+TEST_F(FopenW, NormalOperation) {
+    EXPECT_OK((FILE *)nullptr, fopen("x", "w"));
+}
+
+TEST_F(FopenW, NormalOperationOnLink) {
+    EXPECT_OK((FILE *)nullptr, fopen("lx", "w"));
+}
+
+TEST_F(FopenW, LinkOutside) {
+    EXPECT_ERRNO(ESBX, (FILE *)nullptr, fopen("ltmp", "w"));
+}
+
+TEST_F(FopenW, LinkOutsideND) {
+    EXPECT_ERRNO(ESBX, (FILE *)nullptr, fopen("ltmp2", "w"));
+}
+
+class FopenA : public SandboxTest {};
+
+TEST_F(FopenA, IsADirectory) {
+    EXPECT_ERRNO(EISDIR, (FILE *)nullptr, fopen("dhasfile", "a"));
+    EXPECT_ERRNO(EISDIR, (FILE *)nullptr, fopen("dempty", "a"));
+}
+
+TEST_F(FopenA, LinkIsADirectory) {
+    EXPECT_ERRNO(EISDIR, (FILE *)nullptr, fopen("ldhasfile", "a"));
+    EXPECT_ERRNO(EISDIR, (FILE *)nullptr, fopen("ldempty", "a"));
+}
+
+TEST_F(FopenA, Exists) {
+    EXPECT_OK((FILE *)nullptr, fopen("f0", "a"));
+    EXPECT_OK((FILE *)nullptr, fopen("dhasfile/f1", "a"));
+}
+
+TEST_F(FopenA, LinkExists) {
+    EXPECT_OK((FILE *)nullptr, fopen("l0", "a"));
+    EXPECT_OK((FILE *)nullptr, fopen("l1", "a"));
+}
+
+TEST_F(FopenA, Outside) {
+    EXPECT_ERRNO(ESBX, (FILE *)nullptr, fopen("/tmp/fopen-outside", "a"));
+}
+
+TEST_F(FopenA, OutsideDir) {
+    EXPECT_ERRNO(ESBX, (FILE *)nullptr, fopen("/tmp/does/not/exist/outside", "a"));
+}
+
+TEST_F(FopenA, NormalOperation) {
+    EXPECT_OK((FILE *)nullptr, fopen("x", "a"));
+}
+
+TEST_F(FopenA, NormalOperationOnLink) {
+    EXPECT_OK((FILE *)nullptr, fopen("lx", "a"));
+}
+
+TEST_F(FopenA, LinkOutside) {
+    EXPECT_ERRNO(ESBX, (FILE *)nullptr, fopen("ltmp", "a"));
+}
+
+TEST_F(FopenA, LinkOutsideND) {
+    EXPECT_ERRNO(ESBX, (FILE *)nullptr, fopen("ltmp2", "a"));
+}
+
+class FopenR : public SandboxTest {};
+
+TEST_F(FopenR, Exists) {
+    EXPECT_OK((FILE *)nullptr, fopen("f0", "r"));
+    EXPECT_OK((FILE *)nullptr, fopen("dhasfile/f1", "r"));
+}
+
+TEST_F(FopenR, LinkExists) {
+    EXPECT_OK((FILE *)nullptr, fopen("l0", "r"));
+    EXPECT_OK((FILE *)nullptr, fopen("l1", "r"));
+}
+
+TEST_F(FopenR, Outside) {
+    EXPECT_ERRNO(ESBX, (FILE *)nullptr, fopen("/dev/null", "r"));
+}
+
+TEST_F(FopenR, LinkOutside) {
+    EXPECT_ERRNO(ESBX, (FILE *)nullptr, fopen("lsh", "r"));
+}
+
+TEST_F(FopenR, LinkOutsideDoesNotExist) {
+    EXPECT_ERRNO(ESBX, (FILE *)nullptr, fopen("loutbroken", "r"));
+}
+
+TEST_F(FopenR, DoesNotExist) {
+    EXPECT_ERRNO(ENOENT,(FILE *)nullptr, fopen("x", "r"));
+}
+
+TEST_F(FopenR, NormalOperationOnLink) {
+    EXPECT_ERRNO(ENOENT, (FILE *)nullptr, fopen("lx", "r"));
+}
+
+TEST_F(FopenR, LinkOutsideDoesNotExistTmp) {
+    EXPECT_ERRNO(ESBX, (FILE *)nullptr, fopen("ltmp", "r"));
+}
+
+TEST_F(FopenR, LinkOutsideDoesNotExistTmp2) {
+    EXPECT_ERRNO(ESBX, (FILE *)nullptr, fopen("ltmp2", "r"));
+}
+
 class Exec : public SandboxTest {};
 
 char fail_msg[] = "ERROR: EXEC BYPASSED SANDBOX";
