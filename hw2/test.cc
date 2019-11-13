@@ -135,8 +135,6 @@ class SandboxTest : public ::testing::Test {
     }
 };
 
-class Chdir : public SandboxTest {};
-
 #define EXPECT_ERRNO(e, r, op)                                                              \
     do {                                                                                    \
         int oerrno = errno;                                                                 \
@@ -159,6 +157,8 @@ class Chdir : public SandboxTest {};
             << "errno: " << errno << ": " << strerror(errno); \
         errno = oerrno;                                       \
     } while (0)
+
+class Chdir : public SandboxTest {};
 
 TEST_F(Chdir, ParentDirectory) {
     EXPECT_ERRNO(ESBX, -1, chdir(".."));
