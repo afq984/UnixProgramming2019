@@ -15,6 +15,8 @@
 
 // the errno the sandbox should set when denying function calls
 const int ESBX = EACCES;
+// the errno the sandbox should set when ENOENT happens outside of basedir
+const int EOUT = ENOENT;
 
 std::runtime_error rtef(const char *fmt, ...) {
     char *errcstr;
@@ -142,63 +144,55 @@ class Chdir : public SandboxTest {};
     } while (0)
 
 TEST_F(Chdir, ParentDirectory) {
-    EXPECT_EQ(-1, chdir(".."));
-    EXPECT_EQ(ESBX, errno);
+    EXPECT_ERRNO(ESBX, -1, chdir(".."));
 }
 
 TEST_F(Chdir, SParentDirectory) {
-    EXPECT_EQ(-1, chdir("l.."));
-    EXPECT_EQ(ESBX, errno);
+    EXPECT_ERRNO(ESBX, -1, chdir("l.."));
 }
 
 TEST_F(Chdir, Root) {
-    EXPECT_EQ(-1, chdir("/"));
-    EXPECT_EQ(ESBX, errno);
+    EXPECT_ERRNO(ESBX, -1, chdir("/"));
 }
 
 TEST_F(Chdir, SRoot) {
-    EXPECT_EQ(-1, chdir("lroot"));
-    EXPECT_EQ(ESBX, errno);
+    EXPECT_ERRNO(ESBX, -1, chdir("lroot"));
 }
 
 TEST_F(Chdir, Here) {
-    EXPECT_EQ(0, chdir("."));
-    EXPECT_EQ(0, errno);
+    EXPECT_ERRNO(0, 0, chdir("."));
 }
 
 TEST_F(Chdir, SHere) {
-    EXPECT_EQ(0, chdir("."));
-    EXPECT_EQ(0, errno);
+    EXPECT_ERRNO(0, 0, chdir("."));
 }
 
 TEST_F(Chdir, File) {
-    EXPECT_EQ(-1, chdir("f0"));
-    EXPECT_EQ(ENOTDIR, errno);
+    EXPECT_ERRNO(ENOTDIR, -1, chdir("f0"));
 }
 
 TEST_F(Chdir, SFile) {
-    EXPECT_EQ(-1, chdir("l0"));
-    EXPECT_EQ(ENOTDIR, errno);
+    EXPECT_ERRNO(ENOTDIR, -1, chdir("l0"));
 }
 
 TEST_F(Chdir, EmptyString) {
-    EXPECT_EQ(-1, chdir(""));
-    EXPECT_EQ(ENOENT, errno);
+    EXPECT_ERRNO(ENOENT, -1, chdir(""));
 }
 
 TEST_F(Chdir, NoSuchFile) {
-    EXPECT_EQ(-1, chdir("does-not-exist"));
-    EXPECT_EQ(ENOENT, errno);
+    EXPECT_ERRNO(ENOENT, -1, chdir("does-not-exist"));
 }
 
 TEST_F(Chdir, BrokenSymlink) {
-    EXPECT_EQ(-1, chdir("lbroken"));
-    EXPECT_EQ(ENOENT, errno);
+    EXPECT_ERRNO(ENOENT, -1, chdir("lbroken"));
+}
+
+TEST_F(Chdir, NoSuchFileOrDirectoryOutside) {
+    EXPECT_ERRNO(EOUT, -1, chdir("/does/not/exist"));
 }
 
 TEST_F(Chdir, BrokenSymlinkOutside) {
-    EXPECT_EQ(-1, chdir("loutbroken"));
-    EXPECT_EQ(ENOENT, errno);
+    EXPECT_ERRNO(EOUT, -1, chdir("loutbroken"));
 }
 
 TEST_F(Chdir, Inside) {
