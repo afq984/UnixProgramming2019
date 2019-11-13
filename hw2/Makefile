@@ -13,19 +13,13 @@ sandbox.so: sandbox.cc
 hw2: launcher
 	cp launcher hw2
 
-test: test.cc
-	$(CXX) -o $@ $(CXXFLAGS) -lgtest_main -lgtest -ldl $^
-
-test64: test.cc
-	$(CXX) -o $@ $(CXXFLAGS) -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -lgtest_main -lgtest -ldl $^
-
-
 .PHONY: r
-r: test test64 hw2 sandbox.so
+r: hw2 sandbox.so
+	ninja -C UnixProgHW2TestCases
 	rm -rf testroot
 	mkdir testroot
-	cd testroot && ../hw2 -p ../sandbox.so ../test
-	cd testroot && ../hw2 -p ../sandbox.so ../test64
+	cd testroot && ../hw2 -p ../sandbox.so ../UnixProgHW2TestCases/test
+	cd testroot && ../hw2 -p ../sandbox.so ../UnixProgHW2TestCases/test64
 
 .PHONY: clean
 clean:
