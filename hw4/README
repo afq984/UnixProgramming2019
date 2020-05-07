@@ -1,0 +1,5 @@
+CGI programs are detected by the whether execute permission is given:
+
+    access(path, X_OK);
+
+verified via https://github.com/afq984/UnixProgHW4TestCases
