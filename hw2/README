@@ -1,0 +1,12 @@
+Monitored functions
+
+chdir chmod chown creat fopen link mkdir open openat opendir readlink remove rename rmdir stat symlink unlink
+
+execl execle execlp execv execve execvp system
+
+
+Tests
+
+UnixProgHW2TestCases contains 327 test cases
+
+`make r` runs them.
